@@ -4,15 +4,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler, MaxAbsScaler, RobustScaler
 
+from lochan_eda.utils import get_iqr_bounds, get_active_cols
+
 class HandleNumerical:
+    def __init__(self, df):
+        self.num_df = df.select_dtypes(include=["number"]).copy()
 
-    def __init__(self, num_df):
-        self.num_df = num_df.copy()
-
-    def imputer(self, exclude: list):
+    def num_imputer(self, exclude=None):
         """impute missing values based on their data behaviour."""
+        active_cols = get_active_cols(self.num_df.columns, exclude)
 
-        missing_prcnt = self.num_df.isna().mean() * 100
+        missing_prcnt = self.num_df[active_cols].isna().mean() * 100
         drop_to_cols = missing_prcnt[missing_prcnt > 40].index
         self.num_df.drop(columns=drop_to_cols, inplace=True)
 
@@ -20,8 +22,9 @@ class HandleNumerical:
         # if uniquness prcnt < 1 that means column fill with only some values (like: categorical)
         like_cat = uniquness[uniquness < 1].index 
         # mode imputation for categorical-like numerical columns
-        most_frequent_vals = self.num_df[like_cat].mode()
-        self.num_df[like_cat] = self.num_df[like_cat].fillna(most_frequent_vals)
+        if not like_cat.empty:
+          most_frequent_vals = self.num_df[like_cat].mode().iloc[0]
+          self.num_df[like_cat] = self.num_df[like_cat].fillna(most_frequent_vals)
 
 
         simple_cols = missing_prcnt[(missing_prcnt > 0) & (missing_prcnt <= 40)].index
@@ -33,31 +36,26 @@ class HandleNumerical:
           self.num_df[simple_cols] = self.num_df[simple_cols].fillna(fill_vals)
         
         return self.num_df
-    
-
+   
     def outlier_manager(self, exclude=None):
-      for col in self.num_df.columns:
+      """handle outliers based on there percentage and the distribution of data."""
+      active_cols = get_active_cols(self.num_df.columns, exclude)
+
+      for col in active_cols:
         # finding outlier percentage by iqr method
-        Q1 = self.num_df[col].quantile(0.25)
-        Q3 = self.num_df[col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - IQR*1.5
-        upper_bound = Q3 + IQR*1.5
-        outliers_count = self.num_df[col][(self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)].count()
-        outliers_prcnt = (outliers_count / self.num_df[col].shape[0]) * 100
-        # print(outliers_prcnt)
+        lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
+        outliers_prcnt = ((self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)).mean() * 100
         
-        print(outliers_prcnt, col)
         # when we have only some outliers they can be error ( < 3%). and trimming them will not damage our dataset
-        if outliers_prcnt <= 3.0:
-          self.num_df[col] = self.num_df[col][(self.num_df[col] <= upper_bound) & (self.num_df[col] >= lower_bound)]
+        if outliers_prcnt <= 3.0 and outliers_prcnt > 0:
+          self.num_df = self.num_df[(self.num_df[col] <= upper_bound) & (self.num_df[col] >= lower_bound)]
           continue
 
         # now outliers are so much so we can't just trim them we need to handle them softly :)
         p90 = self.num_df[col].quantile(0.90)
         p99 = self.num_df[col].quantile(0.99)
         max_val = self.num_df[col].max()
-        gap = (p99 - p90) / (max_val - p99)
+        gap = (p99 - p90) / (max_val - p99 + 1e-9)
 
         if gap <= 1.0:
           # spikes -> heavy tail. method -> Winsorization
@@ -77,18 +75,17 @@ class HandleNumerical:
               self.num_df[col] = np.log1p(self.num_df[col])
       return self.num_df
     
-    def scaler(self):
-      for col in self.num_df.columns:
+    def scaler(self, exclude=None):
+      """Scale data on the basis of there sparsity, skewness, outlier_ratio."""
+      active_cols = get_active_cols(self.num_df.columns, exclude)
+
+      for col in active_cols:
         # percentage of zero values
         sparsity = (self.num_df[col] == 0).mean()
         # measure the skewness
         skewness = self.num_df[col].skew()
          # finding outlier percentage by iqr method
-        Q1 = self.num_df[col].quantile(0.25)
-        Q3 = self.num_df[col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - IQR*1.5
-        upper_bound = Q3 + IQR*1.5
+        lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
         outliers_ratio = ((self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)).mean()
 
         if sparsity >= 0.5:
@@ -103,4 +100,11 @@ class HandleNumerical:
         
         self.num_df[col] = scaler_obj.fit_transform(self.num_df[[col]]).flatten()
         
+      return self.num_df
+    
+    def full_handler(self):
+      """Execute Imputer, Outlier Manager, Scaler (all in one)."""
+      self.num_imputer()
+      self.outlier_manager()
+      self.scaler()
       return self.num_df
