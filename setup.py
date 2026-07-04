@@ -14,7 +14,7 @@ setup(
         "numpy",
         "matplotlib",
         "seaborn",
-        "scikit-learn"
+        "scikit-learn>=1.3"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
