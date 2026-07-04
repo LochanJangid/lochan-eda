@@ -1,3 +1,5 @@
+import pandas as pd
+
 from lochan_eda.numerical import HandleNumerical
 from lochan_eda.categorical import HandleCategorical
 
