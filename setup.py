@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="lochan-eda",
-    version="0.0.2",
+    version="0.0.3",
     author="Lochan Jangid",
     description="An automated Exploratory Data Analysis (EDA) library.",
     long_description=open("README.md").read(),
