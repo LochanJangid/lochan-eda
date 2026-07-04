@@ -4,15 +4,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from lochan_eda.numerical import HandleNumerical
+from lochan_eda.categorical import HandleCategorical
 
-class AutomatedEDA:
+class AutomatedEDA(HandleNumerical, HandleCategorical):
     def __init__(self, df):
         self.df = df
 
     def run_pipeline(self):
-        num_df = self.df.select_dtypes(include=["number"])
+        num_handler = HandleNumerical(self.df)
+        cleaned_num_df = num_handler.full_handler()
+        cat_handler = HandleCategorical(self.df)
+        cleaned_cat_df = cat_handler.full_handler()
 
-        num_handler = HandleNumerical(num_df)
-        imputed_df = num_handler.imputer()
-
-        return imputed_df
+        return pd.concat([cleaned_num_df, cleaned_cat_df], axis=1, join="inner")
