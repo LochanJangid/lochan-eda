@@ -65,9 +65,9 @@ class HandleCategorical:
         return self.cat_df
     
     
-    def full_handler(self):
-      """Execute Imputer, rare values Manager, Encoder (all in one)."""
-      self.cat_imputer()
-      self.rare_manager()
-      self.encoder()
-      return self.cat_df
+    def full_handler(self, target):
+        """Execute Imputer, rare values Manager, Encoder (all in one)."""
+        self.cat_imputer()
+        self.rare_manager()
+        self.encoder(target=target)
+        return self.cat_df
