@@ -9,33 +9,46 @@ class HandleNumerical:
     def __init__(self, df):
         self.num_df = df.select_dtypes(include=["number"]).copy()
 
-    def num_imputer(self, exclude=None):
+        self.drop_cols_ = []
+        self.impute_values_ = {}
+
+    def num_imputer(self, is_train=True, exclude=None):
         """impute missing values based on their data behaviour."""
         active_cols = get_active_cols(self.num_df.columns, exclude)
-        missing_prcnt = self.num_df[active_cols].isna().mean() * 100
-        drop_to_cols = missing_prcnt[missing_prcnt > 40].index
-        self.num_df.drop(columns=drop_to_cols, inplace=True)
 
-        uniquness = (self.num_df.nunique() / self.num_df.shape[0]) * 100
+        # Runs on training and memorize drop_cols & impute values
+        if is_train: 
+            missing_prcnt = self.num_df[active_cols].isna().mean() * 100
+            # drop columns with > 40% missing data
+            self.drop_cols_ = missing_prcnt[missing_prcnt > 40].index.tolist()
 
-        # if uniquness prcnt < 1 that means column fill with only some values (like: categorical)
-        like_cat = uniquness[uniquness < 1].index
+            active_cols = [col for col in active_cols if col not in self.drop_cols_]
 
-        # mode imputation for categorical-like numerical columns
-        if not like_cat.empty:
-            most_frequent_vals = self.num_df[like_cat].mode().iloc[0]
-            self.num_df[like_cat] = self.num_df[like_cat].fillna(most_frequent_vals)
+            if active_cols:
+                uniquness = (self.num_df.nunique() / self.num_df.shape[0]) * 100
+                like_cat = uniquness[uniquness < 1].index
 
-        simple_cols = missing_prcnt[
-            (missing_prcnt > 0) & (missing_prcnt <= 40)
-        ].index
+                for col in like_cat:
+                    if self.num_df[col].isna().sum() > 0:
+                        self.impute_values_[col] = self.num_df[col].mode().iloc[0]
 
-        if not simple_cols.empty:
-            skewness = self.num_df[simple_cols].skew().abs()
-            means = self.num_df[simple_cols].mean()
-            medians = self.num_df[simple_cols].median()
-            fill_vals = means.where(skewness < 0.5, medians)
-            self.num_df[simple_cols] = self.num_df[simple_cols].fillna(fill_vals)
+                simple_cols = [col for col in active_cols if col not in like_cat]
+
+                for col in simple_cols:
+                    if missing_prcnt[col] > 0:
+                        skewness = self.num_df[simple_cols].skew().abs()
+                        fill_val = self.num_df[col].mean() if abs(skewness) < 0.5 else self.num_df[col].median()
+                        self.impute_values_[simple_cols] = fill_val
+        
+        # Main Work apply memorized things 
+
+        if self.drop_cols_:
+            cols_to_drop = [c for c in self.drop_cols_ if c in self.num_df.columns]
+            self.num_df.drop(columns=cols_to_drop, inplace=True)
+
+        for col, fill_val in self.impute_values_.items():
+            if col in self.num_df.columns:
+                self.num_df[col] = self.num_df[col].fillna(fill_val)
 
         return self.num_df
 
@@ -56,10 +69,7 @@ class HandleNumerical:
 
             # when we have only some outliers they can be error ( < 3%). and trimming them will not damage our dataset
             if outliers_prcnt <= 3.0 and outliers_prcnt > 0:
-                self.num_df = self.num_df[
-                    (self.num_df[col] <= upper_bound)
-                    & (self.num_df[col] >= lower_bound)
-                ]
+                self.num_df[col] = self.num_df[col].clip(lower=lower_bound, upper=upper_bound)
                 continue
 
             # now outliers are so much so we can't just trim them we need to handle them softly :)
@@ -77,12 +87,12 @@ class HandleNumerical:
                 # Softly -> Long tail. method -> Transformation
                 is_negative_exist = self.num_df[col][
                     self.num_df[col] < 0
-                ].count()
+                ].any()
 
                 if not is_negative_exist:
                     is_zero_exist = self.num_df[col][
                         self.num_df[col] == 0
-                    ].count()
+                    ].any()
 
                     if is_zero_exist:
                         # Square root transformation
