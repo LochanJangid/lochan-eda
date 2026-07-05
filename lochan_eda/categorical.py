@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import TargetEncoder
 
+from lochan_eda.utils import get_active_cols
+
 class HandleCategorical:
     def __init__(self, df):
         self.cat_df = df.select_dtypes(include=["category", "object", "string"]).copy()
@@ -14,16 +16,18 @@ class HandleCategorical:
         self.ohe_columns_ = {}    
         self.freq_maps_ = {}
         self.target_encoders_ = {}
+        self.te_train_encoded_ = {}
 
-    def cat_imputer(self, is_train=True):
+    def cat_imputer(self, is_train=True, exclude=None):
         """Impute missing values based on missingness percentage."""
-        
-        self.cat_df = self.cat_df.replace('nan', np.nan)
+        active_cols = get_active_cols(self.cat_df.columns, exclude)
+
+        self.cat_df = self.cat_df[active_cols].replace('nan', np.nan)
 
         if is_train:
-            missing_prcnt = self.cat_df.isna().mean() * 100
+            missing_prcnt = self.cat_df[active_cols].isna().mean() * 100
             self.drop_cols_ = missing_prcnt[missing_prcnt > 40].index.tolist()
-            remaining_cols = [c for c in self.cat_df.columns if c not in self.drop_cols_]
+            remaining_cols = [c for c in active_cols if c not in self.drop_cols_]
     
             for col in remaining_cols:
                 if missing_prcnt[col] <= 10 and self.cat_df[col].dropna().shape[0] > 0:
@@ -31,33 +35,36 @@ class HandleCategorical:
 
         # Work for both train and test df
 
-        self.cat_df.drop(columns=[c for c in self.drop_cols_ if c in self.cat_df.columns], inplace=True)
-        for col in self.cat_df.columns:
+        self.cat_df.drop(columns=[c for c in self.drop_cols_ if c in active_cols], inplace=True)
+        active_cols = [col for col in active_cols if col not in self.drop_cols_]
+        for col in active_cols:
             fill_val = 'Unknown' if col not in self.impute_modes_ else self.impute_modes_[col]
             self.cat_df[col] = self.cat_df[col].fillna(fill_val)
     
         return self.cat_df
 
-    def rare_manager(self, is_train=True, threshold=0.05):
+    def rare_manager(self, is_train=True, threshold=0.05, exclude=None):
         """Group low-frequency categories into an 'Other' bin."""
+        active_cols = get_active_cols(self.cat_df.columns, exclude)
 
         if is_train:
-            for col in self.cat_df.columns:
+            for col in active_cols:
                 freqs = self.cat_df[col].value_counts(normalize=True)
                 self.rare_cats_[col] = freqs[freqs < threshold].index.tolist()
 
         # Work
         for col, rare_list in self.rare_cats_.items():
-            if col in self.cat_df.columns and rare_list:
+            if col in active_cols and rare_list:
                 self.cat_df[col] = self.cat_df[col].apply(lambda x: 'Other' if x in rare_list else x)
 
         return self.cat_df
 
-    def encoder(self, is_train=True, target=None):
+    def encoder(self, is_train=True, target=None, exclude=None):
         """Encode categories to numbers based on cardinality (number of unique values)."""
+        active_cols = get_active_cols(self.cat_df.columns, exclude)
         encoded_dfs = []
         
-        for col in self.cat_df.columns: 
+        for col in active_cols: 
             if is_train:
                 unique_cnt = self.cat_df[col].nunique()
             
@@ -73,7 +80,7 @@ class HandleCategorical:
                     if target is not None:
                         self.encode_types_[col] = 'te'
                         te = TargetEncoder(smooth="auto")
-                        te.fit(self.cat_df[[col]], target)
+                        self.te_train_encoded_[col] = te.fit_transform(self.cat_df[[col]], target)
                         self.target_encoders_[col] = te
                     else:
                         self.encode_types_[col] = 'freq'
@@ -91,7 +98,10 @@ class HandleCategorical:
                 ohe = ohe.reindex(columns=self.ohe_columns_.get(col, []), fill_value=0)
                 encoded_dfs.append(ohe)
             elif etype == 'te':
-                encoded = self.target_encoders_[col].transform(self.cat_df[[col]])
+                if is_train and col in self.te_train_encoded_:
+                    encoded = self.te_train_encoded_[col]
+                else:
+                    encoded = self.target_encoders_[col].transform(self.cat_df[[col]])
                 encoded_dfs.append(pd.DataFrame(encoded, columns=[f"{col}_TE"], index=self.cat_df.index))
 
             elif etype == 'freq':
