@@ -11,7 +11,10 @@ class HandleNumerical:
 
         self.drop_cols_ = []
         self.impute_values_ = {}
+        self.outlier_rules_ = {}
+        self.scalers_ = {}
 
+        
     def num_imputer(self, is_train=True, exclude=None):
         """impute missing values based on their data behaviour."""
         active_cols = get_active_cols(self.num_df.columns, exclude)
@@ -36,9 +39,9 @@ class HandleNumerical:
 
                 for col in simple_cols:
                     if missing_prcnt[col] > 0:
-                        skewness = self.num_df[simple_cols].skew().abs()
+                        skewness = self.num_df[col].skew()
                         fill_val = self.num_df[col].mean() if abs(skewness) < 0.5 else self.num_df[col].median()
-                        self.impute_values_[simple_cols] = fill_val
+                        self.impute_values_[col] = fill_val
         
         # Main Work apply memorized things 
 
@@ -52,96 +55,76 @@ class HandleNumerical:
 
         return self.num_df
 
-    def outlier_manager(self, exclude=None):
-        """handle outliers based on there percentage and the distribution of data."""
+    def outlier_manager(self, is_train=True, exclude=None):
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
-        for col in active_cols:
-            # finding outlier percentage by iqr method
-            lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
-            outliers_prcnt = (
-                (
-                    (self.num_df[col] > upper_bound)
-                    | (self.num_df[col] < lower_bound)
-                ).mean()
-                * 100
-            )
+        if is_train:
+            for col in active_cols:
+                lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
+                outliers_prcnt = ((self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)).mean() * 100
 
-            # when we have only some outliers they can be error ( < 3%). and trimming them will not damage our dataset
-            if outliers_prcnt <= 3.0 and outliers_prcnt > 0:
-                self.num_df[col] = self.num_df[col].clip(lower=lower_bound, upper=upper_bound)
-                continue
+                if 0 < outliers_prcnt <= 3.0:
+                    self.outlier_rules_[col] = {'type': 'clip', 'lower': lower_bound, 'upper': upper_bound}
+                elif outliers_prcnt > 3.0:
+                    p90 = self.num_df[col].quantile(0.90)
+                    p99 = self.num_df[col].quantile(0.99)
+                    max_val = self.num_df[col].max()
+                    gap = (p99 - p90) / (max_val - p99 + 1e-9)
 
-            # now outliers are so much so we can't just trim them we need to handle them softly :)
-            p90 = self.num_df[col].quantile(0.90)
-            p99 = self.num_df[col].quantile(0.99)
-            max_val = self.num_df[col].max()
-            gap = (p99 - p90) / (max_val - p99 + 1e-9)
-
-            if gap <= 1.0:
-                # spikes -> heavy tail. method -> Winsorization
-                p5 = self.num_df[col].quantile(0.05)
-                p95 = self.num_df[col].quantile(0.95)
-                self.num_df[col] = self.num_df[col].clip(lower=p5, upper=p95)
-            else:
-                # Softly -> Long tail. method -> Transformation
-                is_negative_exist = self.num_df[col][
-                    self.num_df[col] < 0
-                ].any()
-
-                if not is_negative_exist:
-                    is_zero_exist = self.num_df[col][
-                        self.num_df[col] == 0
-                    ].any()
-
-                    if is_zero_exist:
-                        # Square root transformation
-                        self.num_df[col] = np.sqrt(self.num_df[col])
+                    if gap <= 1.0:
+                        p5 = self.num_df[col].quantile(0.05)
+                        p95 = self.num_df[col].quantile(0.95)
+                        self.outlier_rules_[col] = {'type': 'clip', 'lower': p5, 'upper': p95}
                     else:
-                        # Log transformation
-                        self.num_df[col] = np.log1p(self.num_df[col])
+                        is_negative = (self.num_df[col] < 0).any()
+                        if not is_negative:
+                            is_zero = (self.num_df[col] == 0).any()
+                            self.outlier_rules_[col] = {'type': 'sqrt' if is_zero else 'log1p'}
+
+        # Work (Train and Test)
+        for col, rule in self.outlier_rules_.items():
+            if col in self.num_df.columns:
+                if rule['type'] == 'clip':
+                    self.num_df[col] = self.num_df[col].clip(lower=rule['lower'], upper=rule['upper'])
+                elif rule['type'] == 'sqrt':
+                    self.num_df[col] = np.sqrt(self.num_df[col])
+                elif rule['type'] == 'log1p':
+                    self.num_df[col] = np.log1p(self.num_df[col])
 
         return self.num_df
 
-    def scaler(self, exclude=None):
-        """Scale data on the basis of there sparsity, skewness, outlier_ratio."""
+    def scaler(self, is_train=True, exclude=None):
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
-        for col in active_cols:
-            # percentage of zero values
-            sparsity = (self.num_df[col] == 0).mean()
+        if is_train:
+            for col in active_cols:
+                sparsity = (self.num_df[col] == 0).mean()
+                skewness = self.num_df[col].skew()
+                lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
+                outliers_ratio = ((self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)).mean()
 
-            # measure the skewness
-            skewness = self.num_df[col].skew()
+                if sparsity >= 0.5:
+                    scaler_obj = MaxAbsScaler()
+                elif skewness > 1.0 and self.num_df[col].min() >= 0:
+                    self.num_df[col] = np.log1p(self.num_df[col])
+                    scaler_obj = StandardScaler()
+                elif outliers_ratio >= 0.05:
+                    scaler_obj = RobustScaler()
+                else:
+                    scaler_obj = StandardScaler()
 
-            # finding outlier percentage by iqr method
-            lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
-            outliers_ratio = (
-                (
-                    (self.num_df[col] > upper_bound)
-                    | (self.num_df[col] < lower_bound)
-                ).mean()
-            )
+                scaler_obj.fit(self.num_df[[col]])
+                self.scalers_[col] = scaler_obj
 
-            if sparsity >= 0.5:
-                scaler_obj = MaxAbsScaler()
-            elif skewness > 1.0 and self.num_df[col].min() >= 0:
-                self.num_df[col] = np.log1p(self.num_df[col])
-                scaler_obj = StandardScaler()
-            elif outliers_ratio >= 0.05:
-                scaler_obj = RobustScaler()
-            else:
-                scaler_obj = StandardScaler()
-
-            self.num_df[col] = scaler_obj.fit_transform(
-                self.num_df[[col]]
-            ).flatten()
+        # Apply rules (Train & Test)
+        for col, scaler_obj in self.scalers_.items():
+            if col in self.num_df.columns:
+                self.num_df[col] = scaler_obj.transform(self.num_df[[col]]).flatten()
 
         return self.num_df
 
-    def full_handler(self):
-        """Execute Imputer, Outlier Manager, Scaler (all in one)."""
-        self.num_imputer()
-        self.outlier_manager()
-        self.scaler()
+    def full_handler(self, is_train=True):
+        self.num_imputer(is_train=is_train)
+        self.outlier_manager(is_train=is_train)
+        self.scaler(is_train=is_train)
         return self.num_df
