@@ -1,5 +1,4 @@
-```markdown
-# lochan-eda
+# Lochan-eda
 
 [![Tests](https://github.com/LochanJangid/lochan-eda/actions/workflows/test.yml/badge.svg)](https://github.com/LochanJangid/lochan-eda/actions/workflows/test.yml)
 [![PyPI version](https://img.shields.io/pypi/v/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
@@ -143,7 +142,3 @@ Issues and PRs are heavily welcomed. Please ensure you run `pytest` before submi
 ## License
 
 MIT © Lochan Jangid
-
-```
-
-```
