@@ -13,8 +13,8 @@ class HandleNumerical:
         self.impute_values_ = {}
         self.outlier_rules_ = {}
         self.scalers_ = {}
+        self.transforms_ = {}
 
-        
     def num_imputer(self, is_train=True, exclude=None):
         """impute missing values based on their data behaviour."""
         active_cols = get_active_cols(self.num_df.columns, exclude)
@@ -28,7 +28,7 @@ class HandleNumerical:
             active_cols = [col for col in active_cols if col not in self.drop_cols_]
 
             if active_cols:
-                uniquness = (self.num_df.nunique() / self.num_df.shape[0]) * 100
+                uniquness = (self.num_df[active_cols].nunique() / self.num_df[active_cols].shape[0]) * 100
                 like_cat = uniquness[uniquness < 1].index
 
                 for col in like_cat:
@@ -71,15 +71,15 @@ class HandleNumerical:
                     max_val = self.num_df[col].max()
                     gap = (p99 - p90) / (max_val - p99 + 1e-9)
 
-                    if gap <= 1.0:
+                    is_negative = (self.num_df[col] < 0).any()
+                    
+                    if gap <= 1.0 or is_negative:
                         p5 = self.num_df[col].quantile(0.05)
                         p95 = self.num_df[col].quantile(0.95)
                         self.outlier_rules_[col] = {'type': 'clip', 'lower': p5, 'upper': p95}
                     else:
-                        is_negative = (self.num_df[col] < 0).any()
-                        if not is_negative:
-                            is_zero = (self.num_df[col] == 0).any()
-                            self.outlier_rules_[col] = {'type': 'sqrt' if is_zero else 'log1p'}
+                        is_zero = (self.num_df[col] == 0).any()
+                        self.outlier_rules_[col] = {'type': 'sqrt' if is_zero else 'log1p'}
 
         # Work (Train and Test)
         for col, rule in self.outlier_rules_.items():
@@ -104,22 +104,28 @@ class HandleNumerical:
                 outliers_ratio = ((self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)).mean()
 
                 if sparsity >= 0.5:
-                    scaler_obj = MaxAbsScaler()
+                    scaler_obj, fit_data = MaxAbsScaler(), self.num_df[[col]]
                 elif skewness > 1.0 and self.num_df[col].min() >= 0:
-                    self.num_df[col] = np.log1p(self.num_df[col])
-                    scaler_obj = StandardScaler()
+                    self.transforms_[col] = "log1p"
+                    scaler_obj, fit_data = StandardScaler(), np.log1p(self.num_df[[col]])
                 elif outliers_ratio >= 0.05:
-                    scaler_obj = RobustScaler()
+                    scaler_obj, fit_data = RobustScaler(), self.num_df[[col]]
                 else:
-                    scaler_obj = StandardScaler()
+                    scaler_obj, fit_data = StandardScaler(), self.num_df[[col]]
 
-                scaler_obj.fit(self.num_df[[col]])
+                scaler_obj.fit(fit_data)
                 self.scalers_[col] = scaler_obj
 
         # Apply rules (Train & Test)
         for col, scaler_obj in self.scalers_.items():
             if col in self.num_df.columns:
-                self.num_df[col] = scaler_obj.transform(self.num_df[[col]]).flatten()
+
+                data = self.num_df[[col]]
+                
+                if self.transforms_.get(col) == "log1p":
+                    data = np.log1p(data)
+                
+                self.num_df[col] = scaler_obj.transform(data).flatten()
 
         return self.num_df
 
