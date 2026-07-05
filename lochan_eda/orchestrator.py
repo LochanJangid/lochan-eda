@@ -9,6 +9,7 @@ class AutomatedEDA():
         # make hanlder that will stay on both train and test
         self.num_handler = None
         self.cat_handler = None
+        self.final_columns_ = None
 
     def run_pipeline(self, df, target=None, is_train=True):
 
@@ -24,4 +25,9 @@ class AutomatedEDA():
         cleaned_num_df = self.num_handler.full_handler(is_train=is_train)
         cleaned_cat_df = self.cat_handler.full_handler(target=target, is_train=is_train)
 
-        return pd.concat([cleaned_num_df, cleaned_cat_df], axis=1, join="inner")
+        result = pd.concat([cleaned_num_df, cleaned_cat_df], axis=1, join="inner")
+        if is_train:
+            self.final_columns_ = result.columns.tolist()
+        else:
+            result = result.reindex(columns=self.final_columns_, fill_value=0)
+        return result
