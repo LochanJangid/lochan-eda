@@ -1,10 +1,11 @@
 from setuptools import setup, find_packages
 
+
 setup(
     name="lochan-eda",
-    version="0.0.3",
+    version="0.1.0",
     author="Lochan Jangid",
-    description="An automated Exploratory Data Analysis (EDA) library.",
+    description="An automated, leakage-free data preprocessing pipeline for machine learning.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=["tests", "tests.*"]),
