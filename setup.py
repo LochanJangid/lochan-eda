@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="lochan-eda",
-    version="0.1.0",
+    version="0.1.1",
     author="Lochan Jangid",
     description="An automated, leakage-free data preprocessing pipeline for machine learning.",
     long_description=open("README.md").read(),
