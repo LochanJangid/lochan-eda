@@ -1,0 +1,74 @@
+site_name: lochan-eda
+site_description: An automated, leakage-free data preprocessing pipeline for machine learning.
+site_author: Lochan Jangid
+site_url: https://lochanjangid.github.io/lochan-eda/
+
+repo_name: LochanJangid/lochan-eda
+repo_url: https://github.com/LochanJangid/lochan-eda
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy      # adds a one-click copy button to every code block
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Core Concepts: concepts.md
+  - API Reference:
+      - AutomatedEDA: api/automated-eda.md
+      - HandleNumerical: api/handle-numerical.md
+      - HandleCategorical: api/handle-categorical.md
+      - Inspecting Learned Rules: api/inspecting-rules.md
+  - Full Example: examples.md
+  - FAQ: faq.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/LochanJangid
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/lochan-eda/

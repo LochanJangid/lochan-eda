@@ -1,6 +1,7 @@
 # Lochan-eda
 
 [![Tests](https://github.com/LochanJangid/lochan-eda/actions/workflows/test.yml/badge.svg)](https://github.com/LochanJangid/lochan-eda/actions/workflows/test.yml)
+[![Docs](https://img.shields.io/badge/docs-online-blue.svg)](https://lochanjangid.github.io/lochan-eda/)
 [![PyPI version](https://img.shields.io/pypi/v/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
 [![Python versions](https://img.shields.io/pypi/pyversions/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
