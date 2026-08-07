@@ -18,7 +18,7 @@ class HandleCategorical:
         self.target_encoders_ = {}
         self.te_train_encoded_ = {}
 
-    def cat_imputer(self, is_train=True, threshold=40, exclude=None):
+    def cat_imputer(self, is_train=True, threshold=40, exclude=None, verbose=False):
         """Impute missing values based on missingness percentage."""
         active_cols = get_active_cols(self.cat_df.columns, exclude)
 
@@ -40,10 +40,14 @@ class HandleCategorical:
         for col in active_cols:
             fill_val = 'Unknown' if col not in self.impute_modes_ else self.impute_modes_[col]
             self.cat_df[col] = self.cat_df[col].fillna(fill_val)
-    
+
+        if verbose:
+            print(f"{'Columns  to drop':<30}: {self.drop_cols_}")
+            print(f"{'Impute Values':<30}: {self.impute_modes_}")
+
         return self.cat_df
 
-    def rare_manager(self, is_train=True, threshold=0.05, exclude=None):
+    def rare_manager(self, is_train=True, threshold=0.05, exclude=None, verbose=False):
         """Group low-frequency categories into an 'Other' bin."""
         active_cols = get_active_cols(self.cat_df.columns, exclude)
 
@@ -56,10 +60,12 @@ class HandleCategorical:
         for col, rare_list in self.rare_cats_.items():
             if col in active_cols and rare_list:
                 self.cat_df[col] = self.cat_df[col].apply(lambda x: 'Other' if x in rare_list else x)
+        if verbose:
+            print(f"{'Rare Categories':<30}: {self.rare_cats_}")
 
         return self.cat_df
 
-    def encoder(self, is_train=True, target=None, exclude=None):
+    def encoder(self, is_train=True, target=None, exclude=None, verbose=False):
         """Encode categories to numbers based on cardinality (number of unique values)."""
         active_cols = get_active_cols(self.cat_df.columns, exclude)
         encoded_dfs = []
@@ -108,13 +114,23 @@ class HandleCategorical:
                 encoded_series = self.cat_df[col].map(self.freq_maps_[col]).fillna(0).rename(f"{col}_Freq")
                 encoded_dfs.append(encoded_series)
 
+        if verbose:
+                    print(f"{'Encoded Types':<30}: {self.encode_types_}")
+                    print(f"{'Binary Maps':<30}: {self.binary_maps_}")
+                    print(f"{'OHE Columns':<30}: {self.ohe_columns_}")
+
         self.cat_df = pd.concat(encoded_dfs, axis=1)
         return self.cat_df
     
+        
     
-    def full_handler(self, target=None, is_train=True,  missing_threshold=None, exclude=None):
+    def full_handler(self, target=None, is_train=True,  missing_threshold=None, exclude=None, verbose=False):
         """Execute Imputer, rare values Manager, Encoder (all in one)."""
-        self.cat_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold)
-        self.rare_manager(is_train=is_train, exclude=exclude)
-        self.encoder(target=target, is_train=is_train, exclude=exclude)
+        if(verbose):
+                    print("\n-------- CAT FULL HANDLER START --------")
+        self.cat_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold, verbose=verbose)
+        self.rare_manager(is_train=is_train, exclude=exclude, verbose=verbose)
+        self.encoder(target=target, is_train=is_train, exclude=exclude, verbose=verbose)
+        if(verbose):
+                    print("\n-------- CAT FULL HANDLER START --------")
         return self.cat_df

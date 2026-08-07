@@ -11,7 +11,7 @@ class AutomatedEDA():
         self.cat_handler = None
         self.final_columns_ = None
 
-    def run_pipeline(self, df, target=None, is_train=True, exclude=None, missing_threshold=40, contamination=3):
+    def run_pipeline(self, df, target=None, is_train=True, exclude=None, missing_threshold=40, contamination=3, verbose=False):
 
         if is_train:
             self.num_handler = HandleNumerical(df)
@@ -21,9 +21,17 @@ class AutomatedEDA():
             self.num_handler.num_df = df.select_dtypes(include=["number"]).copy()
             self.cat_handler.cat_df = df.select_dtypes(include=["category", "object", "string"]).copy()
 
+        # Verbose = True
+        if verbose:
+            print("AUTOMATED EDA FULL PIPELINE START...")
+        if is_train and verbose:
+            print("-------> WE ARE IN TRAIN SET ARENA")
+        elif verbose:
+            print("-------> WE ARE IN TEST SET ARENA")
+
         # Execute pipeline
-        cleaned_num_df = self.num_handler.full_handler(is_train=is_train, exclude=exclude, missing_threshold=missing_threshold, contamination=contamination)
-        cleaned_cat_df = self.cat_handler.full_handler(target=target, is_train=is_train, exclude=exclude, missing_threshold=missing_threshold)
+        cleaned_num_df = self.num_handler.full_handler(is_train=is_train, exclude=exclude, missing_threshold=missing_threshold, contamination=contamination, verbose=verbose)
+        cleaned_cat_df = self.cat_handler.full_handler(target=target, is_train=is_train, exclude=exclude, missing_threshold=missing_threshold, verbose=verbose)
 
         result = pd.concat([cleaned_num_df, cleaned_cat_df], axis=1, join="inner")
         if is_train:

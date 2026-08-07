@@ -15,7 +15,7 @@ class HandleNumerical:
         self.scalers_ = {}
         self.transforms_ = {}
 
-    def num_imputer(self, is_train=True, threshold=40, exclude=None):
+    def num_imputer(self, is_train=True, threshold=40, exclude=None, verbose=False):
         """impute missing values based on their data behaviour."""
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
@@ -44,7 +44,10 @@ class HandleNumerical:
                         self.impute_values_[col] = fill_val
         
         # Main Work apply memorized things 
-
+        if verbose:
+            print(f"{'Columns to drop':<30}: {self.drop_cols_}")
+            print(f"{'Impute Values':<30}: {self.impute_values_}")
+            
         if self.drop_cols_:
             cols_to_drop = [c for c in self.drop_cols_ if c in self.num_df.columns]
             self.num_df.drop(columns=cols_to_drop, inplace=True)
@@ -55,9 +58,10 @@ class HandleNumerical:
 
         return self.num_df
 
-    def outlier_manager(self, is_train=True, threshold=3.0, exclude=None):
+    def outlier_manager(self, is_train=True, threshold=3.0, exclude=None, verbose=False):
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
+        
         if is_train:
             for col in active_cols:
                 lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
@@ -81,6 +85,10 @@ class HandleNumerical:
                         is_zero = (self.num_df[col] == 0).any()
                         self.outlier_rules_[col] = {'type': 'sqrt' if is_zero else 'log1p'}
 
+        if verbose:
+            rules = {col : rule['type'] for col, rule in self.outlier_rules_.items()}
+            print(f"{'Outlier Handling methods':<30}: {rules}")
+
         # Work (Train and Test)
         for col, rule in self.outlier_rules_.items():
             if col in self.num_df.columns:
@@ -93,7 +101,7 @@ class HandleNumerical:
 
         return self.num_df
 
-    def scaler(self, is_train=True, exclude=None):
+    def scaler(self, is_train=True, exclude=None, verbose=False):
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
         if is_train:
@@ -116,6 +124,10 @@ class HandleNumerical:
                 scaler_obj.fit(fit_data)
                 self.scalers_[col] = scaler_obj
 
+        if verbose:
+            print(f"{'Scalers':<30}: {self.scalers_}")
+            print(f"{'Transformers':<30}: {self.transforms_}")
+
         # Apply rules (Train & Test)
         for col, scaler_obj in self.scalers_.items():
             if col in self.num_df.columns:
@@ -129,8 +141,12 @@ class HandleNumerical:
 
         return self.num_df
 
-    def full_handler(self, is_train=True, missing_threshold=None, contamination=None, exclude=None):
-        self.num_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold)
-        self.outlier_manager(is_train=is_train, exclude=exclude, threshold=contamination)
-        self.scaler(is_train=is_train)
+    def full_handler(self, is_train=True, missing_threshold=None, contamination=None, exclude=None, verbose=False):
+        if(verbose):
+            print("\n-------- NUM FULL HANDLER START --------")
+        self.num_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold, verbose=verbose)
+        self.outlier_manager(is_train=is_train, exclude=exclude, threshold=contamination, verbose=verbose)
+        self.scaler(is_train=is_train, verbose=verbose)
+        if(verbose):
+            print("-------- NUM FULL HANDLER END --------\n")
         return self.num_df
