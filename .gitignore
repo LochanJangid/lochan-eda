@@ -69,3 +69,6 @@ venv.bak/
 .vscode/
 .idea/
 .DS_Store
+
+# some personal files
+personal_testing.py
