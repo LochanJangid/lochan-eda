@@ -15,15 +15,15 @@ class HandleNumerical:
         self.scalers_ = {}
         self.transforms_ = {}
 
-    def num_imputer(self, is_train=True, exclude=None):
+    def num_imputer(self, is_train=True, threshold=40, exclude=None):
         """impute missing values based on their data behaviour."""
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
         # Runs on training and memorize drop_cols & impute values
         if is_train: 
             missing_prcnt = self.num_df[active_cols].isna().mean() * 100
-            # drop columns with > 40% missing data
-            self.drop_cols_ = missing_prcnt[missing_prcnt > 40].index.tolist()
+            # drop columns with > threshold missing data
+            self.drop_cols_ = missing_prcnt[missing_prcnt > threshold].index.tolist()
 
             active_cols = [col for col in active_cols if col not in self.drop_cols_]
 
@@ -55,7 +55,7 @@ class HandleNumerical:
 
         return self.num_df
 
-    def outlier_manager(self, is_train=True, exclude=None):
+    def outlier_manager(self, is_train=True, threshold=3.0, exclude=None):
         active_cols = get_active_cols(self.num_df.columns, exclude)
 
         if is_train:
@@ -63,9 +63,9 @@ class HandleNumerical:
                 lower_bound, upper_bound = get_iqr_bounds(self.num_df[col])
                 outliers_prcnt = ((self.num_df[col] > upper_bound) | (self.num_df[col] < lower_bound)).mean() * 100
 
-                if 0 < outliers_prcnt <= 3.0:
+                if 0 < outliers_prcnt <= threshold:
                     self.outlier_rules_[col] = {'type': 'clip', 'lower': lower_bound, 'upper': upper_bound}
-                elif outliers_prcnt > 3.0:
+                elif outliers_prcnt > threshold:
                     p90 = self.num_df[col].quantile(0.90)
                     p99 = self.num_df[col].quantile(0.99)
                     max_val = self.num_df[col].max()
@@ -129,8 +129,8 @@ class HandleNumerical:
 
         return self.num_df
 
-    def full_handler(self, is_train=True, exclude=None):
-        self.num_imputer(is_train=is_train, exclude=exclude)
-        self.outlier_manager(is_train=is_train, exclude=exclude)
+    def full_handler(self, is_train=True, missing_threshold=None, contamination=None, exclude=None):
+        self.num_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold)
+        self.outlier_manager(is_train=is_train, exclude=exclude, threshold=contamination)
         self.scaler(is_train=is_train)
         return self.num_df

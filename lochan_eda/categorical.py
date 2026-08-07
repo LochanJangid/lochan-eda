@@ -18,7 +18,7 @@ class HandleCategorical:
         self.target_encoders_ = {}
         self.te_train_encoded_ = {}
 
-    def cat_imputer(self, is_train=True, exclude=None):
+    def cat_imputer(self, is_train=True, threshold=40, exclude=None):
         """Impute missing values based on missingness percentage."""
         active_cols = get_active_cols(self.cat_df.columns, exclude)
 
@@ -26,7 +26,7 @@ class HandleCategorical:
 
         if is_train:
             missing_prcnt = self.cat_df[active_cols].isna().mean() * 100
-            self.drop_cols_ = missing_prcnt[missing_prcnt > 40].index.tolist()
+            self.drop_cols_ = missing_prcnt[missing_prcnt > threshold].index.tolist()
             remaining_cols = [c for c in active_cols if c not in self.drop_cols_]
     
             for col in remaining_cols:
@@ -112,9 +112,9 @@ class HandleCategorical:
         return self.cat_df
     
     
-    def full_handler(self, target=None, is_train=True, exclude=None):
+    def full_handler(self, target=None, is_train=True,  missing_threshold=None, exclude=None):
         """Execute Imputer, rare values Manager, Encoder (all in one)."""
-        self.cat_imputer(is_train=is_train, exclude=exclude)
+        self.cat_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold)
         self.rare_manager(is_train=is_train, exclude=exclude)
         self.encoder(target=target, is_train=is_train, exclude=exclude)
         return self.cat_df

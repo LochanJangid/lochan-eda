@@ -11,7 +11,7 @@ class AutomatedEDA():
         self.cat_handler = None
         self.final_columns_ = None
 
-    def run_pipeline(self, df, target=None, is_train=True, exclude=None):
+    def run_pipeline(self, df, target=None, is_train=True, exclude=None, missing_threshold=40, contamination=3):
 
         if is_train:
             self.num_handler = HandleNumerical(df)
@@ -22,8 +22,8 @@ class AutomatedEDA():
             self.cat_handler.cat_df = df.select_dtypes(include=["category", "object", "string"]).copy()
 
         # Execute pipeline
-        cleaned_num_df = self.num_handler.full_handler(is_train=is_train, exclude=exclude)
-        cleaned_cat_df = self.cat_handler.full_handler(target=target, is_train=is_train, exclude=exclude)
+        cleaned_num_df = self.num_handler.full_handler(is_train=is_train, exclude=exclude, missing_threshold=missing_threshold, contamination=contamination)
+        cleaned_cat_df = self.cat_handler.full_handler(target=target, is_train=is_train, exclude=exclude, missing_threshold=missing_threshold)
 
         result = pd.concat([cleaned_num_df, cleaned_cat_df], axis=1, join="inner")
         if is_train:
