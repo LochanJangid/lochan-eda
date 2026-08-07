@@ -98,6 +98,11 @@ class TestSchemaConsistency:
         with pytest.raises(AttributeError):
             pipeline.run_pipeline(messy_df, target=None, is_train=False)
 
+    def test_is_columns_excluding(self, messy_df):
+        exclude_col = np.random.choice(messy_df.columns, 2, replace=False)
+        pipeline = AutomatedEDA()
+        out = pipeline.run_pipeline(messy_df, target=None, exclude=exclude_col)
+        assert len(exclude_col) != len(out.columns)
 
 class TestTargetEncodingLeakage:
 

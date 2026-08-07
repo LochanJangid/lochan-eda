@@ -129,8 +129,8 @@ class HandleNumerical:
 
         return self.num_df
 
-    def full_handler(self, is_train=True):
-        self.num_imputer(is_train=is_train)
-        self.outlier_manager(is_train=is_train)
+    def full_handler(self, is_train=True, exclude=None):
+        self.num_imputer(is_train=is_train, exclude=exclude)
+        self.outlier_manager(is_train=is_train, exclude=exclude)
         self.scaler(is_train=is_train)
         return self.num_df
