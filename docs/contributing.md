@@ -27,6 +27,4 @@ Then open `http://127.0.0.1:8000` to preview changes live as you edit files unde
 
 ## Known gaps (good first issues)
 
-- `exclude` is not forwarded through `full_handler()` on either handler
-- Missing-value (40%) and outlier (3%) thresholds are hardcoded rather than configurable
-- No verbose/logging mode that explains each column's decision at runtime
+- inside `HandleCategorical.encoder()` Get Target parameter as col name and access it after `num_handling()`
