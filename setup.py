@@ -2,9 +2,6 @@ from typing import List
 from pathlib import Path
 from setuptools import setup, find_packages
 
-def require_packages(filepath: str) -> List[str]:
-    return [pckg.replace("\n", "").strip() for pckg in open(filepath).readlines() if "-e ." not in pckg]
-
 setup(
     name="lochan-eda",
     version="0.2.0",
@@ -14,7 +11,15 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.9",
-    install_requires=require_packages("requirements.txt"),
+    install_requires=[
+        "pandas",
+        "numpy",
+        "scikit-learn",
+        "matplotlib",
+        "seaborn",
+        "pytest",
+        "reportlab"
+    ]
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.9",
