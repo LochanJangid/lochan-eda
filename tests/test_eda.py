@@ -2,180 +2,558 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from lochan_eda import AutomatedEDA
-from lochan_eda.numerical import HandleNumerical
-from lochan_eda.categorical import HandleCategorical
+from lochan_eda.orchestrator import AutomatedEDA
+from lochan_eda.numerical import Numerical
+from lochan_eda.categorical import Categorical
 
+
+# ============================================================
+# Fixtures
+# ============================================================
 
 @pytest.fixture
-def messy_df():
-    rng = np.random.default_rng(42)
-    n = 4000
-
-    df = pd.DataFrame({
-        "income": rng.exponential(scale=45000, size=n),
-        "temp_change": rng.normal(0, 4, n) + rng.choice([0, 40, -40], size=n, p=[0.94, 0.03, 0.03]),
-        "num_purchases": rng.poisson(0.3, n),
-        "age": rng.normal(35, 10, n).clip(18, 90),
-        "score_like_cat": rng.choice([1, 2, 3], size=n).astype(float),
-        "gender": rng.choice(["M", "F"], size=n),
-        "city": rng.choice(["Jaipur", "Delhi", "Mumbai", "Bangalore", "Chennai"], size=n),
-        "occupation": rng.choice([f"occ_{i}" for i in range(15)], size=n),
+def basic_df():
+    return pd.DataFrame({
+        "age": [22, 30, 27, 40, 35, 50, 29, 45, 31, 38],
+        "income": [20000, 22000, 26000, 50000, 48000, 70000, 28000, 60000, 35000, 45000],
+        "city": ["A", "B", "A", "C", "B", "A", "C", "B", "A", "C"],
+        "target": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
     })
 
-    for col in ["income", "age", "score_like_cat", "city"]:
-        mask = rng.random(n) < 0.08
-        df.loc[mask, col] = np.nan
 
-    return df
+@pytest.fixture
+def missing_df():
+    return pd.DataFrame({
+        "age": [22, 30, np.nan, 40, 35, 50, 29, 45, 31, 38],
+        "income": [20000, 22000, 26000, np.nan, 48000, 70000, 28000, 60000, 35000, 45000],
+        "city": ["A", "B", np.nan, "C", "B", "A", "C", "B", "A", "C"],
+        "target": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
+    })
 
 
 @pytest.fixture
-def noise_target(messy_df):
-    rng = np.random.default_rng(7)
-    return pd.Series(rng.integers(0, 2, size=len(messy_df)), name="target")
+def high_cardinality_df():
+    return pd.DataFrame({
+        "category": [f"cat_{i}" for i in range(20)],
+        "value": list(range(20)),
+    })
 
 
-@pytest.fixture
-def informative_target(messy_df):
-    rng = np.random.default_rng(11)
-    occ_effect = {occ: rng.uniform(-2, 2) for occ in messy_df["occupation"].unique()}
-    logits = messy_df["occupation"].map(occ_effect).fillna(0) + rng.normal(0, 0.5, len(messy_df))
-    prob = 1 / (1 + np.exp(-logits))
-    return pd.Series((rng.random(len(messy_df)) < prob).astype(int), name="target")
+# ============================================================
+# AutomatedEDA
+# ============================================================
 
-class TestNoCrashes:
+class TestAutomatedEDA:
 
-    def test_full_pipeline_runs_with_target(self, messy_df, noise_target):
-        out = AutomatedEDA().run_pipeline(messy_df, target=noise_target, is_train=True)
-        assert len(out) == len(messy_df)
-        assert out.shape[1] > 0
+    def test_prepare_with_target_and_split(self, basic_df):
+        eda = AutomatedEDA()
 
-    def test_full_pipeline_runs_without_target(self, messy_df):
-        out = AutomatedEDA().run_pipeline(messy_df, target=None, is_train=True)
-        assert len(out) == len(messy_df)
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target"
+        )
 
-    def test_scaler_does_not_crash_on_skewed_column(self, messy_df):
-        handler = HandleNumerical(messy_df)
-        handler.num_imputer(is_train=True)
-        handler.outlier_manager(is_train=True)
-        result = handler.scaler(is_train=True)  
-        assert result["income"].notna().all()
+        assert isinstance(Xtr, pd.DataFrame)
+        assert isinstance(Xte, pd.DataFrame)
+        assert isinstance(ytr, pd.Series)
+        assert isinstance(yte, pd.Series)
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+        assert "target" not in Xtr.columns
+        assert "target" not in Xte.columns
+
+    def test_prepare_without_target_and_split(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte = eda.prepare(basic_df.drop(columns="target"))
+
+        assert isinstance(Xtr, pd.DataFrame)
+        assert isinstance(Xte, pd.DataFrame)
+
+        assert len(Xtr) + len(Xte) == len(basic_df)
+
+    def test_prepare_with_target_without_split(self, basic_df):
+        eda = AutomatedEDA()
+
+        X, y = eda.prepare(
+            basic_df,
+            target="target",
+            split=False
+        )
+
+        assert isinstance(X, pd.DataFrame)
+        assert isinstance(y, pd.Series)
+
+        assert len(X) == len(y)
+        assert "target" not in X.columns
+
+    def test_prepare_without_target_without_split(self, basic_df):
+        eda = AutomatedEDA()
+
+        result = eda.prepare(
+            basic_df.drop(columns="target"),
+            split=False
+        )
+
+        assert isinstance(result, pd.DataFrame)
+
+        assert len(result) == len(basic_df)
+        assert "age" in result.columns
+        assert "income" in result.columns
+        assert "city_B" in result.columns
+        assert "city_C" in result.columns
+
+    def test_target_series(self, basic_df):
+        eda = AutomatedEDA()
+
+        X = basic_df.drop(columns="target")
+        y = basic_df["target"]
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            X,
+            target=y
+        )
+
+        assert isinstance(ytr, pd.Series)
+        assert isinstance(yte, pd.Series)
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_exclude_numeric_column(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age"]
+        )
+
+        assert "age" not in Xtr.columns
+        assert "age" not in Xte.columns
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_exclude_categorical_column(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["city"]
+        )
+
+        assert "city" not in Xtr.columns
+        assert "city" not in Xte.columns
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_exclude_multiple_columns(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age", "city"]
+        )
+
+        assert "age" not in Xtr.columns
+        assert "city" not in Xtr.columns
+
+        assert "age" not in Xte.columns
+        assert "city" not in Xte.columns
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_exclude_does_not_change_row_count(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age"]
+        )
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+        assert len(Xtr) + len(Xte) == len(basic_df)
+
+    def test_exclude_drops_column_completely(self, basic_df):
+        eda = AutomatedEDA()
+
+        X, y = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age", "city"],
+            split=False
+        )
+
+        assert "age" not in X.columns
+        assert "city" not in X.columns
+
+        assert set(X.columns) == {"income"}
+
+    def test_fit_creates_processors(self, basic_df):
+        eda = AutomatedEDA()
+
+        X = basic_df.drop(columns="target")
+
+        eda.fit(X)
+
+        assert hasattr(eda, "numerical")
+        assert hasattr(eda, "categorical")
+
+        assert eda.numerical.is_fitted_
+        assert eda.categorical.is_fitted_
+
+    def test_transform_after_fit(self, basic_df):
+        eda = AutomatedEDA()
+
+        X = basic_df.drop(columns="target")
+
+        eda.fit(X)
+        transformed = eda.transform(X)
+
+        assert isinstance(transformed, tuple)
+        assert isinstance(transformed[0], pd.DataFrame)
+
+    def test_transform_before_fit_raises(self, basic_df):
+        eda = AutomatedEDA()
+
+        X = basic_df.drop(columns="target")
+
+        with pytest.raises(Exception):
+            eda.transform(X)
 
 
-class TestSchemaConsistency:
+# ============================================================
+# Numerical
+# ============================================================
 
-    def test_test_output_matches_train_columns(self, messy_df, noise_target):
-        pipeline = AutomatedEDA()
-        train_out = pipeline.run_pipeline(messy_df, target=noise_target, is_train=True)
+class TestNumerical:
 
-        test_out = pipeline.run_pipeline(messy_df.iloc[:300].copy(), target=None, is_train=False)
-        assert list(test_out.columns) == list(train_out.columns)
+    def test_fit(self, basic_df):
+        numerical = Numerical()
 
-    def test_missing_column_in_test_is_filled_with_zero(self, messy_df, noise_target):
-        pipeline = AutomatedEDA()
-        train_out = pipeline.run_pipeline(messy_df, target=noise_target, is_train=True)
+        X = basic_df[["age", "income"]]
 
-        test_df = messy_df.iloc[:300].drop(columns=["gender"]).copy()
-        test_out = pipeline.run_pipeline(test_df, target=None, is_train=False)
+        result = numerical.fit(X)
 
-        assert list(test_out.columns) == list(train_out.columns)
-        assert (test_out["gender"] == 0).all()
+        assert result is None
+        assert numerical.is_fitted_
 
-    def test_extra_column_in_test_is_dropped(self, messy_df, noise_target):
-        pipeline = AutomatedEDA()
-        train_out = pipeline.run_pipeline(messy_df, target=noise_target, is_train=True)
+    def test_transform_before_fit_raises(self, basic_df):
+        numerical = Numerical()
 
-        test_df = messy_df.iloc[:300].copy()
-        test_df["brand_new_col"] = 1
-        test_out = pipeline.run_pipeline(test_df, target=None, is_train=False)
+        X = basic_df[["age", "income"]]
 
-        assert list(test_out.columns) == list(train_out.columns)
-        assert "brand_new_col" not in test_out.columns
+        with pytest.raises(Exception):
+            numerical.transform(X)
 
-    def test_calling_test_before_train_fails_loudly(self, messy_df):
-        pipeline = AutomatedEDA()
-        with pytest.raises(AttributeError):
-            pipeline.run_pipeline(messy_df, target=None, is_train=False)
+    def test_transform_returns_dataframe(self, basic_df):
+        numerical = Numerical()
 
-    def test_is_columns_excluding(self, messy_df):
-        exclude_col = np.random.choice(messy_df.columns, 2, replace=False)
-        pipeline = AutomatedEDA()
-        out = pipeline.run_pipeline(messy_df, target=None, exclude=exclude_col)
-        assert len(exclude_col) != len(out.columns)
+        X = basic_df[["age", "income"]]
 
-class TestTargetEncodingLeakage:
+        numerical.fit(X)
+        result = numerical.transform(X)
 
-    def test_no_leakage_with_noise_target(self, messy_df, noise_target):
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == len(X)
 
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.metrics import roc_auc_score
+    def test_numeric_columns_remain_numeric(self, basic_df):
+        numerical = Numerical()
 
-        rng = np.random.default_rng(1)
-        n, n_cats = 150, 15
-        small_df = pd.DataFrame({"grp": rng.choice([f"grp_{i}" for i in range(n_cats)], size=n)})
-        small_target = pd.Series(rng.integers(0, 2, size=n))
+        X = basic_df[["age", "income"]]
 
-        cat_handler = HandleCategorical(small_df)
-        encoded = cat_handler.encoder(target=small_target, is_train=True)
+        numerical.fit(X)
+        result = numerical.transform(X)
 
-        assert "grp_TE" in encoded.columns
-        corr = np.corrcoef(encoded["grp_TE"], small_target)[0, 1]
-        assert abs(corr) < 0.2, f"grp_TE correlates with a noise target (corr={corr:.3f}) -- leakage regression"
+        assert pd.api.types.is_numeric_dtype(result["age"])
+        assert pd.api.types.is_numeric_dtype(result["income"])
 
-        X = encoded[["grp_TE"]].values
-        auc = roc_auc_score(small_target, LogisticRegression().fit(X, small_target).predict_proba(X)[:, 1])
-        assert auc < 0.65, f"train AUC from grp_TE alone is {auc:.3f} -- leakage regression"
+    def test_missing_values_are_processed(self, missing_df):
+        numerical = Numerical()
 
-    def test_real_signal_still_captured(self, messy_df, informative_target):
+        X = missing_df[["age", "income"]]
 
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.metrics import roc_auc_score
+        numerical.fit(X)
+        result = numerical.transform(X)
 
-        cat_handler = HandleCategorical(messy_df)
-        encoded = cat_handler.full_handler(target=informative_target, is_train=True)
+        assert not result.isna().any().any()
 
-        X = encoded[["occupation_TE"]].values
-        model = LogisticRegression().fit(X, informative_target)
-        auc = roc_auc_score(informative_target, model.predict_proba(X)[:, 1])
-        assert auc > 0.65, f"train AUC ({auc:.3f}) too low -- target encoding may have lost real signal"
+    def test_exclude_numeric_column(self, basic_df):
+        numerical = Numerical()
 
+        X = basic_df[["age", "income"]]
 
-class TestOutlierHandling:
+        numerical.fit(X, exclude=["age"])
+        result = numerical.transform(X, exclude=["age"])
 
-    def test_negative_skewed_column_gets_a_rule(self, messy_df):
-        handler = HandleNumerical(messy_df)
-        handler.num_imputer(is_train=True)
-        handler.outlier_manager(is_train=True)
-        assert "temp_change" in handler.outlier_rules_, "negative-valued outlier column got no rule at all"
+        assert "age" not in result.columns
+        assert "income" in result.columns
 
-    def test_outliers_are_actually_bounded_after_treatment(self, messy_df):
-        handler = HandleNumerical(messy_df)
-        handler.num_imputer(is_train=True)
-        result = handler.outlier_manager(is_train=True)
-        rule = handler.outlier_rules_.get("temp_change")
-        if rule and rule["type"] == "clip":
-            assert result["temp_change"].max() <= rule["upper"] + 1e-9
-            assert result["temp_change"].min() >= rule["lower"] - 1e-9
+    def test_exclude_missing_column_does_not_crash(self, basic_df):
+        numerical = Numerical()
+
+        X = basic_df[["age", "income"]]
+
+        numerical.fit(X, exclude=["city"])
+        result = numerical.transform(X, exclude=["city"])
+
+        assert isinstance(result, pd.DataFrame)
+
+    def test_unmatched_columns_raise(self, basic_df):
+        numerical = Numerical()
+
+        X = basic_df[["age", "income"]]
+        numerical.fit(X)
+
+        different_X = basic_df[["age"]]
+
+        with pytest.raises(Exception):
+            numerical.transform(different_X)
 
 
-class TestOutputSanity:
+# ============================================================
+# Categorical
+# ============================================================
 
-    def test_no_nans_in_final_output(self, messy_df, noise_target):
-        out = AutomatedEDA().run_pipeline(messy_df, target=noise_target, is_train=True)
-        assert not out.isna().any().any(), "final pipeline output contains NaNs"
+class TestCategorical:
 
-    def test_all_columns_numeric(self, messy_df, noise_target):
-        out = AutomatedEDA().run_pipeline(messy_df, target=noise_target, is_train=True)
-        non_numeric = out.select_dtypes(exclude=["number", "bool"]).columns.tolist()
-        assert not non_numeric, f"non-numeric columns leaked into model-ready output: {non_numeric}"
+    def test_fit(self, basic_df):
+        categorical = Categorical()
 
-    def test_exclude_param_respected_in_numerical_handler(self, messy_df):
-        handler = HandleNumerical(messy_df)
-        handler.num_imputer(is_train=True, exclude=["age"])
-        assert "age" not in handler.impute_values_
+        X = basic_df[["city"]]
+
+        result = categorical.fit(X)
+
+        assert categorical.is_fitted_
+        assert result is None
+
+    def test_transform_before_fit_raises(self, basic_df):
+        categorical = Categorical()
+
+        X = basic_df[["city"]]
+
+        with pytest.raises(Exception):
+            categorical.transform(X)
+
+    def test_binary_encoding(self):
+        categorical = Categorical()
+
+        X = pd.DataFrame({
+            "gender": ["M", "F", "M", "F", "M"]
+        })
+
+        categorical.fit(X)
+        result = categorical.transform(X)
+
+        assert "gender" in result.columns
+        assert pd.api.types.is_numeric_dtype(result["gender"])
+
+    def test_one_hot_encoding(self):
+        categorical = Categorical()
+
+        X = pd.DataFrame({
+            "city": ["A", "B", "C", "A", "B"]
+        })
+
+        categorical.fit(X)
+        result = categorical.transform(X)
+
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == len(X)
+
+        assert all(
+            column.startswith("city_")
+            for column in result.columns
+        )
+
+    def test_frequency_encoding(self, high_cardinality_df):
+        categorical = Categorical()
+
+        X = high_cardinality_df[["category"]]
+
+        categorical.fit(X)
+        result = categorical.transform(X)
+
+        assert "category_Freq" in result.columns
+        assert pd.api.types.is_numeric_dtype(
+            result["category_Freq"]
+        )
+
+    def test_missing_values_are_processed(self, missing_df):
+        categorical = Categorical()
+
+        X = missing_df[["city"]]
+
+        categorical.fit(X)
+        result = categorical.transform(X)
+
+        assert not result.isna().any().any()
+
+    def test_exclude_categorical_column(self, basic_df):
+        categorical = Categorical()
+
+        X = basic_df[["city"]]
+
+        categorical.fit(X, exclude=["city"])
+        result = categorical.transform(X, exclude=["city"])
+
+        assert "city" not in result.columns
+
+    def test_exclude_missing_column_does_not_crash(self, basic_df):
+        categorical = Categorical()
+
+        X = basic_df[["city"]]
+
+        categorical.fit(X, exclude=["age"])
+        result = categorical.transform(X, exclude=["age"])
+
+        assert isinstance(result, pd.DataFrame)
+
+    def test_unmatched_columns_raise(self, basic_df):
+        categorical = Categorical()
+
+        X = basic_df[["city"]]
+        categorical.fit(X)
+
+        different_X = pd.DataFrame({
+            "other_city": ["A", "B", "C"]
+        })
+
+        with pytest.raises(Exception):
+            categorical.transform(different_X)
 
 
-if __name__ == "__main__":
-    import sys
-    sys.exit(pytest.main([__file__, "-v"]))
+# ============================================================
+# Integration
+# ============================================================
+
+class TestIntegration:
+
+    def test_full_pipeline(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target"
+        )
+
+        assert isinstance(Xtr, pd.DataFrame)
+        assert isinstance(Xte, pd.DataFrame)
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+        assert not Xtr.isna().any().any()
+        assert not Xte.isna().any().any()
+
+    def test_pipeline_with_numeric_exclude(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age"]
+        )
+
+        assert "age" not in Xtr.columns
+        assert "age" not in Xte.columns
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_pipeline_with_categorical_exclude(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["city"]
+        )
+
+        assert "city" not in Xtr.columns
+        assert "city" not in Xte.columns
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_pipeline_with_multiple_excludes(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age", "city"]
+        )
+
+        assert set(Xtr.columns) == {"income"}
+        assert set(Xte.columns) == {"income"}
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_pipeline_without_target(self, basic_df):
+        eda = AutomatedEDA()
+
+        X = basic_df.drop(columns="target")
+
+        Xtr, Xte = eda.prepare(X)
+
+        assert isinstance(Xtr, pd.DataFrame)
+        assert isinstance(Xte, pd.DataFrame)
+
+        assert len(Xtr) + len(Xte) == len(X)
+
+    def test_pipeline_preserves_train_test_row_counts(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target"
+        )
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+        assert len(Xtr) + len(Xte) == len(basic_df)
+
+    def test_pipeline_with_missing_values(self, missing_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            missing_df,
+            target="target"
+        )
+
+        assert not Xtr.isna().any().any()
+        assert not Xte.isna().any().any()
+
+    def test_excluded_numeric_and_categorical_columns(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            exclude=["age", "city"]
+        )
+
+        assert "age" not in Xtr.columns
+        assert "city" not in Xtr.columns
+
+        assert "age" not in Xte.columns
+        assert "city" not in Xte.columns
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+        assert not Xtr.isna().any().any()
+        assert not Xte.isna().any().any()
