@@ -85,29 +85,28 @@ class Categorical:
             if encoded_dfs:
                 self.data = pd.concat(encoded_dfs, axis=1)
 
-    def fit(self, data, exclude=None, target=None):
+    def fit(self, data, exclude=None):
         self.fit_data = data
-        if exclude is not None and isinstance(exclude, list[str]):
-            self.fit_data = self.fit_data.drop(columns=exclude)
+        if exclude is not None and isinstance(exclude, list):
+            self.fit_data = self.fit_data.drop(columns=exclude, errors="ignore")
         self.imputer(learn=True)
         self.rare_manager(learn=True)
         self.encoder(learn=True)
         self.is_fitted_ = True
-        return self.data
-
+        return None
+    
     def transform(self, data, exclude=None):
         if not self.is_fitted_:
             raise Exception("How can you transform data before fit.")
-        if exclude is not None and isinstance(exclude, list[str]):
-            data = data.drop(columns=exclude)
+        if exclude is not None and isinstance(exclude, list):
+            data = data.drop(columns=exclude, errors="ignore")
         if not is_matching(self.fit_data, data):
             raise Exception("Unmatched columns.")
 
         self.data = data
 
-        self.imputer(exclude=exclude, learn=False)
-        self.rare_manager(exclude=exclude, learn=False)
-        self.encoder(exclude=exclude, learn=False)
-        if exclude is not None:
-            self.data = pd.concat([self.data, self.excluded_df], axis=1)
+        self.imputer(learn=False)
+        self.rare_manager(learn=False)
+        self.encoder(learn=False)
+
         return self.data

@@ -125,20 +125,21 @@ class Numerical:
 
     def fit(self, data, exclude=None):
         self.fit_data = data
-        if exclude is not None and isinstance(exclude, list[str]):
-            self.fit_data = self.fit_data.drop(columns=exclude)
+        if exclude is not None and isinstance(exclude, list):
+            self.fit_data = self.fit_data.drop(columns=exclude, errors="ignore")
         self.imputer(learn=True)
         self.outlier_manager(learn=True)
         self.scaler(learn=True)
         self.is_fitted_ = True
+
         return None
 
     def transform(self, data, exclude=None):
         ## RAISE ERROR if transform run before fit
         if not self.is_fitted_:
             raise Exception("How can you transform data before fit.")
-        if exclude is not None and isinstance(exclude, list[str]):
-            data = data.drop(columns=exclude)
+        if exclude is not None and isinstance(exclude, list):
+            data = data.drop(columns=exclude, errors="ignore")
         if not is_matching(self.fit_data, data):
             raise Exception("Unmatched columns.")
         
