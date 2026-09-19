@@ -4,6 +4,8 @@ from lochan_eda.numerical import Numerical
 from lochan_eda.categorical import Categorical
 
 class AutomatedEDA():
+    def __init__(self):
+        self.exclude = None
 
     # prepare
     def prepare(self, X: pd.DataFrame, target=None, exclude=None, split=True, test_size=0.2, random_state=42, stratify=None):
@@ -41,16 +43,16 @@ class AutomatedEDA():
             self.Xtr, self.Xte = train_test_split(self.X, test_size=test_size, random_state=random_state)
         
         # preprocess
-        if target and split:
+        if target is not None and split:
             self.fit(self.Xtr, self.ytr)
             # transform Xtrain and Xtest both
             outXtr, outytr, outXte, outyte  = self.transform(self.Xtr, self.ytr) + self.transform(self.Xte, self.yte)
             processed_data = outXtr, outXte, outytr, outyte
-        elif target and not split:
+        elif target is not None and not split:
             self.fit(self.X, self.y)
             outX, outy = self.transform(self.X, self.y)
             processed_data = outX, outy
-        elif not target and split:
+        elif target is None and split:
             self.fit(self.Xtr)
             outXtr, outXte = self.transform(self.Xtr) + self.transform(self.Xte)
             processed_data = outXtr, outXte
