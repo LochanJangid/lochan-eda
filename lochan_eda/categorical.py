@@ -94,7 +94,7 @@ class Categorical:
         self.encoder(exclude=exclude, learn=True)
         return self.data
 
-    def transform(self, data, exclude=None, target=None):
+    def transform(self, data, exclude=None):
         if self.data is None:
             raise ValueError("How can you transform self.data before fit.")
 
