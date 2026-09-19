@@ -20,7 +20,6 @@ def get_active_cols(all_cols, exclude=None):
 
 def is_matching(fit_df, transform_df):
     fit_cols = set(fit_df.columns.tolist())
-    for col in transform_df.columns:
-        if col not in fit_cols:
-            return False
-    return True
+    transform_cols = set(transform_df.columns.tolist())
+
+    return fit_cols == transform_cols
