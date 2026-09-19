@@ -9,7 +9,7 @@ def get_iqr_bounds(series):
     upper_bound = Q3 + IQR * 1.5
     return lower_bound, upper_bound
 
-def get_active_cols(all_cols, exclude):
+def get_active_cols(all_cols, exclude=None):
     """It will Exclude specific cols and return active cols only"""
     if exclude is None: 
         exclude = []
@@ -17,3 +17,10 @@ def get_active_cols(all_cols, exclude):
         exclude = [exclude]
 
     return [col for col in all_cols if col not in exclude]
+
+def is_matching(fit_df, transform_df):
+    fit_cols = set(fit_df.columns.tolist())
+    for col in transform_df.columns:
+        if col not in fit_cols:
+            return False
+    return True
