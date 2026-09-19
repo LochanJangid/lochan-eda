@@ -9,7 +9,7 @@ setup(
     name="lochan-eda",
     version="0.2.0",
     author="Lochan Jangid",
-    description="An automated, leakage-free data preprocessing pipeline for machine learning.",
+    description="A reusable Python package that automates exploratory data analysis and preprocessing workflows.",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=["tests", "tests.*"]),

@@ -1,5 +1,5 @@
 site_name: lochan-eda
-site_description: An automated, leakage-free data preprocessing pipeline for machine learning.
+site_description: A reusable Python package that automates exploratory data analysis and preprocessing workflows.
 site_author: Lochan Jangid
 site_url: https://lochanjangid.github.io/lochan-eda/
 
@@ -39,17 +39,14 @@ theme:
 
 nav:
   - Home: index.md
-  - Quickstart: quickstart.md
-  - Core Concepts: concepts.md
+  - Ready to use: ready-to-use.md
+  - automatedEda: automated-eda.md
   - API Reference:
-      - AutomatedEDA: api/automated-eda.md
-      - HandleNumerical: api/handle-numerical.md
-      - HandleCategorical: api/handle-categorical.md
-      - Inspecting Learned Rules: api/inspecting-rules.md
-  - Full Example: examples.md
-  - FAQ: faq.md
-  - Contributing: contributing.md
-  - Changelog: changelog.md
+      - Numerical: numerical.md
+      - Categorical: categorical.md
+      - Report: report.md
+      - Missing: missing.md
+  - Profiler: profiler.md
 
 markdown_extensions:
   - admonition
