@@ -175,7 +175,8 @@ class Numerical:
 
     def plot(self, columns=None):
         my_data = self.profiler_df.select_dtypes(include=["number"])
-
+        if my_data.empty:
+            return None
         if columns is not None:
             if not is_matching(my_data, pd.DataFrame(index=columns)):
                 raise Exception("given columns are not numerical cols in profiler dataset")
