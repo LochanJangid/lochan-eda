@@ -1,6 +1,7 @@
 import pandas as pd
 from lochan_eda.numerical import Numerical
 from lochan_eda.categorical import Categorical
+from lochan_eda.missing import Missing
 
 class Profiler():
 
@@ -16,7 +17,7 @@ class Profiler():
             self.data = df.drop(columns=[target])
         self.numerical = Numerical(profiler_df=self.data)
         self.categorical = Categorical(profiler_df=self.data)
-
+        self.missing = Missing(profiler_df=self.data)
         
     def overview(self):
         """
@@ -145,6 +146,7 @@ if __name__ == "__main__":
     profiler = Profiler(data)
     # profiler.overview()
     # profiler.categorical.summary()
-    profiler.categorical.plot()
+    # profiler.categorical.plot()
+    profiler.missing.plot()
 
     print("finish")
