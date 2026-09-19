@@ -43,23 +43,23 @@ class AutomatedEDA():
             self.Xtr, self.Xte = train_test_split(self.X, test_size=test_size, random_state=random_state)
         
         # preprocess
-        if target is not None and split:
+        if self.y is not None and split:
             self.fit(self.Xtr, self.ytr)
             # transform Xtrain and Xtest both
             outXtr, outytr, outXte, outyte  = self.transform(self.Xtr, self.ytr) + self.transform(self.Xte, self.yte)
             processed_data = outXtr, outXte, outytr, outyte
-        elif target is not None and not split:
+        elif self.y is not None and not split:
             self.fit(self.X, self.y)
             outX, outy = self.transform(self.X, self.y)
             processed_data = outX, outy
-        elif target is None and split:
+        elif self.y is None and split:
             self.fit(self.Xtr)
             outXtr, outXte = self.transform(self.Xtr) + self.transform(self.Xte)
             processed_data = outXtr, outXte
         else:
             self.fit(self.X)
             outX = self.transform(self.X)
-            processed_data = outX
+            processed_data = outX[0]
 
         return processed_data
 
@@ -98,6 +98,7 @@ class AutomatedEDA():
             Return:
                 Tuple(X, y) if y available else (X,)
         """
+
         num_cols = X.select_dtypes(include=["number"])
         cat_cols = X.select_dtypes(include=["object", "category", "string"])
 
@@ -105,8 +106,6 @@ class AutomatedEDA():
         processed_cat_cols = self.categorical.transform(cat_cols, exclude=self.exclude)  
 
         X = pd.concat([processed_num_cols, processed_cat_cols], axis=1)
-        if self.exclude is not None:
-            X = pd.concat([X, self.X[self.exclude]], axis=1)
 
         return (X, y) if y is not None else (X, )
 
