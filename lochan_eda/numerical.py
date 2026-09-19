@@ -8,6 +8,7 @@ from lochan_eda.utils import get_iqr_bounds, get_active_cols
 class Numerical:
     def __init__(self):
         self.data = None
+        self.is_fitted_ = False
         self.missing_drop_threshold = 40
         self.outlier_threshold = 3.0
         self.drop_cols_ = []
@@ -27,6 +28,7 @@ class Numerical:
             self.drop_cols_ = missing_prcnt[missing_prcnt > self.missing_drop_threshold].index.tolist()
 
             active_cols = [col for col in active_cols if col not in self.drop_cols_]
+            self.data.drop(columns=self.drop_cols_, inplace=True, errors="ignore")
 
             if active_cols:
                 uniquness = (self.data[active_cols].nunique() / self.data[active_cols].shape[0]) * 100
@@ -71,14 +73,15 @@ class Numerical:
                     gap = (p99 - p90) / (max_val - p99 + 1e-9)
 
                     is_negative = (self.data[col] < 0).any()
-                    
+                    is_non_negative = (self.data[col] >= 0).all()
+
                     if gap <= 1.0 or is_negative:
                         p5 = self.data[col].quantile(0.05)
                         p95 = self.data[col].quantile(0.95)
                         self.outlier_rules_[col] = {'type': 'clip', 'lower': p5, 'upper': p95}
                     else:
                         is_zero = (self.data[col] == 0).any()
-                        self.outlier_rules_[col] = {'type': 'sqrt' if is_zero else 'log1p'}
+                        self.outlier_rules_[col] = {'type': 'sqrt' if is_zero and is_non_negative else 'log1p'}
         else:
             # now Transform data based on learnt things
             for col, rule in self.outlier_rules_.items():
@@ -126,11 +129,12 @@ class Numerical:
         self.imputer(exclude=exclude, learn=True)
         self.outlier_manager(exclude=exclude, learn=True)
         self.scaler(exclude=exclude, learn=True)
+        self.is_fitted_ = True
         return None
 
     def transform(self, data, exclude):
         ## RAISE ERROR if transform run before fit
-        if self.data is None:
+        if not self.is_fitted_:
             raise Exception("How can you transform data before fit.")
 
         self.data = data
