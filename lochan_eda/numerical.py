@@ -186,7 +186,8 @@ class Numerical:
             nrows=len(my_data.columns),
             ncols=3,
             figsize=(16, 4*len(my_data.columns)),
-            squeeze=False
+            squeeze=False,
+            constrained_layout=True
         )
 
         for row, col in enumerate(my_data.columns):
@@ -205,7 +206,6 @@ class Numerical:
             axes[row, 2].set_title(f"{col} - Q - Q Plot")
 
         fig.suptitle("Numerical Analysis", fontsize=16, fontweight="bold")
-        fig.tight_layout()
 
         fig.savefig("numerical_plots.png", dpi=150, bbox_inches="tight")
         print("plots is saved into `numerical_plots.png` file")
