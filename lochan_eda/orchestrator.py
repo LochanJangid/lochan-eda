@@ -1,41 +1,103 @@
 import pandas as pd
-
-from lochan_eda.numerical import HandleNumerical
-from lochan_eda.categorical import HandleCategorical
+from sklearn.model_selection import train_test_split
+from lochan_eda.numerical import Numerical
+from lochan_eda.categorical import Categorical
 
 class AutomatedEDA():
-    def __init__(self):
+    
+    # prepare
+    def prepare(self, X: pd.DataFrame, target=None, exclude=None, split=True, test_size=0.2, random_state=42, stratify=None):
+        """
+            prepare(
+                X: pd.Dataframe -> features
+                target: str(column_name)/pd.Series -> label (it will untouched :p)
+                exclude: List[str]/str -> columns that you don't want to touch me
+                split: bool -> do you want split into train test 
+                test_size: float -> test set size in ratio
+                random_state: int -> state for reproducability
+                stratify: if data imbalanced
+            )
+            Return:
+                X if split is False and target is None
+                (Xtr, Xte) if split is True and target is None
+                (X, y) if split is False and target is given
+                (Xtr, Xte, ytr, yte) if split is True and target is given
+        """
+        # if target is a column 
+        self.X = X
+        self.exclude=exclude
+        self.y = None
+        if type(target) == str:
+            self.y = X[target]
+            self.X = X.drop(columns=target)
+        # if target is a independent series
+        if type(target) == pd.Series:
+            self.y = target
 
-        # make hanlder that will stay on both train and test
-        self.num_handler = None
-        self.cat_handler = None
-        self.final_columns_ = None
-
-    def run_pipeline(self, df, target=None, is_train=True, exclude=None, missing_threshold=40, contamination=3, verbose=False):
-
-        if is_train:
-            self.num_handler = HandleNumerical(df)
-            self.cat_handler = HandleCategorical(df)
+        # if we have to split the data
+        if split and self.y is not None:
+            self.Xtr, self.Xte, self.ytr, self.yte = train_test_split(self.X, self.y, test_size=test_size, random_state=random_state, stratify=stratify)
+        elif split:
+            self.Xtr, self.Xte = train_test_split(self.X, test_size=test_size, random_state=random_state)
+        
+        # preprocess
+        if target and split:
+            self.fit(self.Xtr, self.ytr)
+            # transform Xtrain and Xtest both
+            processed_data = self.transform(self.Xtr, self.ytr) + self.transform(self.Xte, self.yte)
+        elif target and not split:
+            self.fit(self.X, self.y)
+            processed_data = self.transform(self.X, self.y)
+        elif not target and split:
+            self.fit(self.Xtr)
+            processed_data = self.transform(self.Xtr) + self.transform(self.Xte)
         else:
-            # for test data just replace inner dataframes attributes
-            self.num_handler.num_df = df.select_dtypes(include=["number"]).copy()
-            self.cat_handler.cat_df = df.select_dtypes(include=["category", "object", "string"]).copy()
+            self.fit(self.X)
+            processed_data = self.transform(self.X)
 
-        # Verbose = True
-        if verbose:
-            print("AUTOMATED EDA FULL PIPELINE START...")
-        if is_train and verbose:
-            print("-------> WE ARE IN TRAIN SET ARENA")
-        elif verbose:
-            print("-------> WE ARE IN TEST SET ARENA")
+        return processed_data[0] if len(processed_data) == 1 else processed_data
 
-        # Execute pipeline
-        cleaned_num_df = self.num_handler.full_handler(is_train=is_train, exclude=exclude, missing_threshold=missing_threshold, contamination=contamination, verbose=verbose)
-        cleaned_cat_df = self.cat_handler.full_handler(target=target, is_train=is_train, exclude=exclude, missing_threshold=missing_threshold, verbose=verbose)
 
-        result = pd.concat([cleaned_num_df, cleaned_cat_df], axis=1, join="inner")
-        if is_train:
-            self.final_columns_ = result.columns.tolist()
-        else:
-            result = result.reindex(columns=self.final_columns_, fill_value=0)
-        return result
+    def fit(self, X: pd.DataFrame, y: pd.Series=None) -> None:
+        """
+            fit(
+                X: pd.DataFrame -> features
+                y: pd.Series -> labels
+            )
+            Work:
+                analyze the data and learn about it.
+            Return:
+                None
+        """
+        # split numerical and categorical 
+        num_cols = X.select_dtypes(include="number")
+        cat_cols = X.select_dtypes(include=["object", "category"])
+
+        self.categorical = Categorical()
+        self.numerical = Numerical()
+
+        self.numerical.fit(num_cols, exclude=self.exclude)
+        self.categorical.fit(cat_cols, exclude=self.exclude)
+
+        return None
+
+    def transform(self, X: pd.DataFrame, y: pd.Series=None):
+        """
+            fit(
+                X: pd.DataFrame -> features
+                y: pd.Series -> labels
+            )
+            Work:
+                implement the analyzed work
+            Return:
+                Tuple(X, y) if y available else (X,)
+        """
+        num_cols = X.select_dtypes(include="number")
+        cat_cols = X.select_dtypes(include=["object", "category"])
+
+        processed_num_cols = self.numerical.transform(num_cols, exclude=self.exclude)
+        processed_cat_cols = self.categorical.transform(cat_cols, exclude=self.exclude)  
+
+        X = pd.concat([processed_num_cols, processed_cat_cols. self.X[self.exclude]], axis=1)
+
+        return (X, y) if y is not None else (X, )

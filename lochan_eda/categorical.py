@@ -1,136 +1,105 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.preprocessing import TargetEncoder
 
 from lochan_eda.utils import get_active_cols
 
-class HandleCategorical:
-    def __init__(self, df):
-        self.cat_df = df.select_dtypes(include=["category", "object", "string"]).copy()
 
+class Categorical:
+    def __init__(self):
+        self.data = None
+        self.missing_drop_threshold = 40
+        self.freq_threshold = 0.05
         self.drop_cols_ = []
         self.impute_modes_ = {}
         self.rare_cats_ = {}
-        self.encode_types_ = {}    
+        self.encode_types_ = {}
         self.binary_maps_ = {}
-        self.ohe_columns_ = {}    
+        self.ohe_columns_ = {}
         self.freq_maps_ = {}
         self.target_encoders_ = {}
         self.te_train_encoded_ = {}
 
-    def cat_imputer(self, is_train=True, threshold=40, exclude=None, verbose=False):
+    def imputer(self, exclude=None, learn=False):
         """Impute missing values based on missingness percentage."""
-        active_cols = get_active_cols(self.cat_df.columns, exclude)
+        active_cols = get_active_cols(self.data.columns, exclude)
 
-        self.cat_df = self.cat_df[active_cols].replace('nan', np.nan)
-
-        if is_train:
-            missing_prcnt = self.cat_df[active_cols].isna().mean() * 100
-            self.drop_cols_ = missing_prcnt[missing_prcnt > threshold].index.tolist()
+        if learn:
+            missing_prcnt = self.data[active_cols].isna().mean() * 100
+            self.drop_cols_ = missing_prcnt[missing_prcnt > self.missing_drop_threshold].index.tolist()
             remaining_cols = [c for c in active_cols if c not in self.drop_cols_]
-    
+
             for col in remaining_cols:
-                if missing_prcnt[col] <= 10 and self.cat_df[col].dropna().shape[0] > 0:
-                    self.impute_modes_[col] = self.cat_df[col].mode()[0]
-
-        # Work for both train and test df
-
-        self.cat_df.drop(columns=[c for c in self.drop_cols_ if c in active_cols], inplace=True)
-        active_cols = [col for col in active_cols if col not in self.drop_cols_]
-        for col in active_cols:
-            fill_val = 'Unknown' if col not in self.impute_modes_ else self.impute_modes_[col]
-            self.cat_df[col] = self.cat_df[col].fillna(fill_val)
-
-        if verbose:
-            print(f"{'Columns  to drop':<30}: {self.drop_cols_}")
-            print(f"{'Impute Values':<30}: {self.impute_modes_}")
-
-        return self.cat_df
-
-    def rare_manager(self, is_train=True, threshold=0.05, exclude=None, verbose=False):
-        """Group low-frequency categories into an 'Other' bin."""
-        active_cols = get_active_cols(self.cat_df.columns, exclude)
-
-        if is_train:
+                if missing_prcnt[col] <= 10 and self.data[col].dropna().shape[0] > 0:
+                    self.impute_modes_[col] = self.data[col].mode()[0]
+        else:
+            self.data = self.data.drop(columns=[c for c in self.drop_cols_ if c in self.data.columns], errors='ignore')
+            active_cols = [col for col in active_cols if col not in self.drop_cols_]
             for col in active_cols:
-                freqs = self.cat_df[col].value_counts(normalize=True)
-                self.rare_cats_[col] = freqs[freqs < threshold].index.tolist()
+                fill_val = 'Unknown' if col not in self.impute_modes_ else self.impute_modes_[col]
+                self.data[col] = self.data[col].fillna(fill_val)
 
-        # Work
-        for col, rare_list in self.rare_cats_.items():
-            if col in active_cols and rare_list:
-                self.cat_df[col] = self.cat_df[col].apply(lambda x: 'Other' if x in rare_list else x)
-        if verbose:
-            print(f"{'Rare Categories':<30}: {self.rare_cats_}")
 
-        return self.cat_df
+    def rare_manager(self, exclude=None, learn=False):
+        """Group low-frequency categories into an 'Other' bin."""
+        active_cols = get_active_cols(self.data.columns, exclude)
 
-    def encoder(self, is_train=True, target=None, exclude=None, verbose=False):
+        if learn:
+            for col in active_cols:
+                freqs = self.data[col].value_counts(normalize=True)
+                self.rare_cats_[col] = freqs[freqs < self.freq_threshold].index.tolist()
+        else:
+            for col, rare_list in self.rare_cats_.items():
+                if col in active_cols and rare_list:
+                    self.data[col] = self.data[col].apply(lambda x: 'Other' if x in rare_list else x)
+
+    def encoder(self, exclude=None, learn=False, target=None):
         """Encode categories to numbers based on cardinality (number of unique values)."""
-        active_cols = get_active_cols(self.cat_df.columns, exclude)
+        active_cols = get_active_cols(self.data.columns, exclude)
         encoded_dfs = []
-        
-        for col in active_cols: 
-            if is_train:
-                unique_cnt = self.cat_df[col].nunique()
-            
+        if learn:
+            for col in active_cols:
+                unique_cnt = self.data[col].nunique()
                 if unique_cnt <= 2:
                     self.encode_types_[col] = 'binary'
-                    unique_vals = sorted(self.cat_df[col].dropna().unique())
+                    unique_vals = sorted(self.data[col].dropna().unique())
                     self.binary_maps_[col] = {val: i for i, val in enumerate(unique_vals)}
                 elif unique_cnt <= 10:
                     self.encode_types_[col] = 'ohe'
-                    temp_ohe = pd.get_dummies(self.cat_df[col], prefix=col, drop_first=True)
+                    temp_ohe = pd.get_dummies(self.data[col], prefix=col, drop_first=True)
                     self.ohe_columns_[col] = temp_ohe.columns.tolist()
                 else:
-                    if target is not None:
-                        self.encode_types_[col] = 'te'
-                        te = TargetEncoder(smooth="auto")
-                        self.te_train_encoded_[col] = te.fit_transform(self.cat_df[[col]], target)
-                        self.target_encoders_[col] = te
-                    else:
-                        self.encode_types_[col] = 'freq'
-                        self.freq_maps_[col] = self.cat_df[col].value_counts(normalize=True).to_dict()
-                    
-            # work (train and test)
+                    self.encode_types_[col] = 'freq'
+                    self.freq_maps_[col] = self.data[col].value_counts(normalize=True).to_dict()
+        else:
+            for col in active_cols:
+                etype = self.encode_types_.get(col)
+                if etype == 'binary':
+                    encoded_series = self.data[col].map(self.binary_maps_[col]).fillna(-1).astype(int)
+                    encoded_dfs.append(encoded_series.rename(col))
+                elif etype == 'ohe':
+                    ohe = pd.get_dummies(self.data[col], prefix=col)
+                    ohe = ohe.reindex(columns=self.ohe_columns_.get(col, []), fill_value=0)
+                    encoded_dfs.append(ohe)
+                elif etype == 'freq':
+                    encoded_series = self.data[col].map(self.freq_maps_[col]).fillna(0).rename(f"{col}_Freq")
+                    encoded_dfs.append(encoded_series)
 
-            etype = self.encode_types_.get(col)
+            self.data = pd.concat(encoded_dfs, axis=1)
 
-            if etype == 'binary':
-                encoded_series = self.cat_df[col].map(self.binary_maps_[col]).fillna(-1).astype(int)
-                encoded_dfs.append(encoded_series)
-            elif etype == 'ohe':
-                ohe = pd.get_dummies(self.cat_df[col], prefix=col)
-                ohe = ohe.reindex(columns=self.ohe_columns_.get(col, []), fill_value=0)
-                encoded_dfs.append(ohe)
-            elif etype == 'te':
-                if is_train and col in self.te_train_encoded_:
-                    encoded = self.te_train_encoded_[col]
-                else:
-                    encoded = self.target_encoders_[col].transform(self.cat_df[[col]])
-                encoded_dfs.append(pd.DataFrame(encoded, columns=[f"{col}_TE"], index=self.cat_df.index))
+    def fit(self, data, exclude=None, target=None):
+        self.data = data
+        self.imputer(exclude=exclude, learn=True)
+        self.rare_manager(exclude=exclude, learn=True)
+        self.encoder(exclude=exclude, learn=True)
+        return self.data
 
-            elif etype == 'freq':
-                encoded_series = self.cat_df[col].map(self.freq_maps_[col]).fillna(0).rename(f"{col}_Freq")
-                encoded_dfs.append(encoded_series)
+    def transform(self, data, exclude=None, target=None):
+        if self.data is None:
+            raise ValueError("How can you transform self.data before fit.")
 
-        if verbose:
-                    print(f"{'Encoded Types':<30}: {self.encode_types_}")
-                    print(f"{'Binary Maps':<30}: {self.binary_maps_}")
-                    print(f"{'OHE Columns':<30}: {self.ohe_columns_}")
-
-        self.cat_df = pd.concat(encoded_dfs, axis=1)
-        return self.cat_df
-    
-        
-    
-    def full_handler(self, target=None, is_train=True,  missing_threshold=None, exclude=None, verbose=False):
-        """Execute Imputer, rare values Manager, Encoder (all in one)."""
-        if(verbose):
-                    print("\n-------- CAT FULL HANDLER START --------")
-        self.cat_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold, verbose=verbose)
-        self.rare_manager(is_train=is_train, exclude=exclude, verbose=verbose)
-        self.encoder(target=target, is_train=is_train, exclude=exclude, verbose=verbose)
-        if(verbose):
-                    print("\n-------- CAT FULL HANDLER END --------")
-        return self.cat_df
+        self.data = data
+        self.imputer(exclude=exclude, learn=False)
+        self.rare_manager(exclude=exclude, learn=False)
+        self.encoder(exclude=exclude, learn=False)
+        return self.data
