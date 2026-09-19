@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="lochan-eda",
-    version="0.2.0",
+    version="0.2.1",
     author="Lochan Jangid",
     description="A reusable Python package that automates exploratory data analysis and preprocessing workflows.",
     long_description=Path("README.md").read_text(encoding="utf-8"),
