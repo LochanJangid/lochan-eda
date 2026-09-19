@@ -1,12 +1,15 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import stats
 from sklearn.preprocessing import StandardScaler, MaxAbsScaler, RobustScaler
 
 from lochan_eda.utils import get_iqr_bounds, get_active_cols, is_matching
 
 
 class Numerical:
-    def __init__(self):
+    def __init__(self, profiler_df=None):
+        self.profiler_df = profiler_df
         self.is_fitted_ = False
         self.missing_drop_threshold = 40
         self.outlier_threshold = 3.0
@@ -148,3 +151,61 @@ class Numerical:
         self.outlier_manager(learn=False)
         self.scaler(learn=False)
         return self.data
+
+    def summary(self):
+        my_data = self.profiler_df.select_dtypes(include=["number"])
+
+        if my_data.empty:
+            return pd.DataFrame()
+
+        summary = my_data.describe().T
+
+        summary["std"] = my_data.std()
+        summary["missings %"] = my_data.isna().mean()
+        summary["skew"] = my_data.skew()
+        summary["zeros %"] = (my_data == 0).mean()
+        iqr = summary["75%"] - summary["25%"]
+        lower_bound = summary["25%"] - iqr*0.5
+        upper_bound = summary["25%"] + iqr*0.5
+        summary["outliers %"] = ((my_data < lower_bound) | (my_data > upper_bound)).mean()
+
+        print("\nNumerical Summary\n")
+        print(summary)
+        return summary
+
+    def plot(self, columns=None):
+        my_data = self.profiler_df.select_dtypes(include=["number"])
+
+        if columns is not None:
+            if not is_matching(my_data, pd.DataFrame(index=columns)):
+                raise Exception("given columns are not numerical cols in profiler dataset")
+            my_data = my_data[columns]
+
+        fig, axes = plt.subplots(
+            nrows=len(my_data.columns),
+            ncols=3,
+            figsize=(16, 4*len(my_data.columns)),
+            squeeze=False
+        )
+
+        for row, col in enumerate(my_data.columns):
+            data = my_data[col].dropna() # Save our plots from null values
+
+            # Distribution
+            axes[row, 0].hist(data, bins="auto", density=True)            
+            axes[row, 0].set_title(f"{col} - Distribution")
+
+            # Boxplot
+            axes[row, 1].boxplot(data, vert=False)
+            axes[row, 1].set_title(f"{col} - Box Plot")
+
+            # Q-Q
+            stats.probplot(data, dist="norm", plot=axes[row, 2])
+            axes[row, 2].set_title(f"{col} - Q - Q Plot")
+
+        fig.suptitle("Numerical Analysis", fontsize=16, fontweight="bold")
+        fig.tight_layout()
+
+        fig.savefig("numerical_plots.png", dpi=150, bbox_inches="tight")
+        print("plots is saved into `numerical_plots.png` file")
+        return fig
