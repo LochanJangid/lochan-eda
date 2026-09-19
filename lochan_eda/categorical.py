@@ -100,7 +100,7 @@ class HandleCategorical:
                 encoded_series = self.cat_df[col].map(self.binary_maps_[col]).fillna(-1).astype(int)
                 encoded_dfs.append(encoded_series)
             elif etype == 'ohe':
-                ohe = pd.get_dummies(self.cat_df[col], prefix=col, drop_first=True)
+                ohe = pd.get_dummies(self.cat_df[col], prefix=col)
                 ohe = ohe.reindex(columns=self.ohe_columns_.get(col, []), fill_value=0)
                 encoded_dfs.append(ohe)
             elif etype == 'te':
@@ -132,5 +132,5 @@ class HandleCategorical:
         self.rare_manager(is_train=is_train, exclude=exclude, verbose=verbose)
         self.encoder(target=target, is_train=is_train, exclude=exclude, verbose=verbose)
         if(verbose):
-                    print("\n-------- CAT FULL HANDLER START --------")
+                    print("\n-------- CAT FULL HANDLER END --------")
         return self.cat_df

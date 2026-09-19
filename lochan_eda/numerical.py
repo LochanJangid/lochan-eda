@@ -146,7 +146,7 @@ class HandleNumerical:
             print("\n-------- NUM FULL HANDLER START --------")
         self.num_imputer(is_train=is_train, exclude=exclude, threshold=missing_threshold, verbose=verbose)
         self.outlier_manager(is_train=is_train, exclude=exclude, threshold=contamination, verbose=verbose)
-        self.scaler(is_train=is_train, verbose=verbose)
+        self.scaler(is_train=is_train, exclude=exclude, verbose=verbose)
         if(verbose):
             print("-------- NUM FULL HANDLER END --------\n")
         return self.num_df

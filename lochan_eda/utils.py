@@ -17,4 +17,3 @@ def get_active_cols(all_cols, exclude):
         exclude = [exclude]
 
     return [col for col in all_cols if col not in exclude]
-    
