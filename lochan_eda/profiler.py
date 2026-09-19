@@ -2,6 +2,7 @@ import pandas as pd
 from lochan_eda.numerical import Numerical
 from lochan_eda.categorical import Categorical
 from lochan_eda.missing import Missing
+from lochan_eda.report import Report
 
 class Profiler():
 
@@ -18,6 +19,7 @@ class Profiler():
         self.numerical = Numerical(profiler_df=self.data)
         self.categorical = Categorical(profiler_df=self.data)
         self.missing = Missing(profiler_df=self.data)
+        self.report = Report(profiler=self)
         
     def overview(self):
         """
@@ -131,22 +133,3 @@ class Profiler():
             "categorical_columns": categorical_cols,
             "datetime_columns": datetime_cols,
         }
-
-if __name__ == "__main__":
-    # from sklearn.datasets import load_iris
-    # iris = load_iris()
-    # data = pd.DataFrame(iris.data)
-    # target = iris.target
-    # profiler = Profiler(data, target)
-    # # profiler.overview()
-    # # profiler.numerical.summary()
-    # profiler.numerical.plot()
-    
-    data = pd.read_csv("dummy_cat_1000.csv")
-    profiler = Profiler(data)
-    # profiler.overview()
-    # profiler.categorical.summary()
-    # profiler.categorical.plot()
-    profiler.missing.plot()
-
-    print("finish")
