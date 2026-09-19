@@ -7,7 +7,7 @@ def require_packages(filepath: str) -> List[str]:
 
 setup(
     name="lochan-eda",
-    version="0.1.3",
+    version="0.2.0",
     author="Lochan Jangid",
     description="An automated, leakage-free data preprocessing pipeline for machine learning.",
     long_description=Path("README.md").read_text(encoding="utf-8"),
