@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from lochan_eda.utils import get_active_cols, is_matching
 
 
 class Categorical:
-    def __init__(self):
+    def __init__(self, profiler_df=None):
+        self.profiler_df=profiler_df
         self.is_fitted_ = False
         self.missing_drop_threshold = 40
         self.freq_threshold = 0.05
@@ -110,3 +112,62 @@ class Categorical:
         self.encoder(learn=False)
 
         return self.data
+
+    def summary(self):
+        my_data = self.profiler_df.select_dtypes(include=["object", "category", "string"])
+        if my_data.empty:
+            return pd.DataFrame()
+
+        summary = my_data.describe().T
+        print("\nCategorical Summary\n")
+        print(summary)
+        return summary
+
+    def plot(self, columns=None, top_n=10):
+        my_data = self.profiler_df.select_dtypes(include=["object", "category", "string"])
+        if my_data.empty:
+                    return None
+        
+        if columns is not None:
+            if not is_matching(my_data, pd.DataFrame(index=columns)):
+                raise Exception("given columns are not categorical cols in profiler dataset")
+            my_data = my_data[columns]
+
+        fig, axes = plt.subplots(
+            nrows=len(my_data.columns),
+            ncols=1,
+            figsize=(10, 4 * len(my_data.columns)),
+            squeeze=False,
+            constrained_layout=True
+        )
+
+        axes = axes.ravel()
+
+        for ax, col in zip(axes, my_data.columns):
+            counts = (my_data[col].value_counts(dropna=False))
+
+            if top_n is not None:
+                if top_n <= 0:
+                    raise ValueError("top_n should be > 0")
+
+                top = counts.head(top_n)
+                others = counts[top_n:].sum()
+                if others > 0:
+                    top.loc["Others"] = others
+                counts = top
+
+            counts.index = counts.index.astype(str)
+
+            counts.plot(kind="bar", ax=ax)
+
+            ax.set_title(f"{col} - Category Distribution", fontsize=12, pad=12)
+            ax.set_xlabel(col)
+            ax.set_ylabel("Count")
+            
+            ax.tick_params(axis="x", rotation=45)
+        
+        fig.suptitle("Categorical Analysis", fontsize=16, fontweight="bold")
+
+        fig.savefig("categorical_plots.png", dpi=150, bbox_inches="tight")
+        print("plots is saved into `categorical_plots.png` file")
+        return fig
