@@ -8,6 +8,7 @@ from lochan_eda.utils import get_active_cols
 class Categorical:
     def __init__(self):
         self.data = None
+        self.is_fitted_ = False
         self.missing_drop_threshold = 40
         self.freq_threshold = 0.05
         self.drop_cols_ = []
@@ -84,18 +85,19 @@ class Categorical:
                 elif etype == 'freq':
                     encoded_series = self.data[col].map(self.freq_maps_[col]).fillna(0).rename(f"{col}_Freq")
                     encoded_dfs.append(encoded_series)
-
-            self.data = pd.concat(encoded_dfs, axis=1)
+            if encoded_dfs:
+                self.data = pd.concat(encoded_dfs, axis=1)
 
     def fit(self, data, exclude=None, target=None):
         self.data = data
         self.imputer(exclude=exclude, learn=True)
         self.rare_manager(exclude=exclude, learn=True)
         self.encoder(exclude=exclude, learn=True)
+        self.is_fitted_ = True
         return self.data
 
     def transform(self, data, exclude=None):
-        if self.data is None:
+        if not self.is_fitted_:
             raise ValueError("How can you transform self.data before fit.")
 
         self.data = data
