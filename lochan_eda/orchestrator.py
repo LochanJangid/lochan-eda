@@ -4,7 +4,7 @@ from lochan_eda.numerical import Numerical
 from lochan_eda.categorical import Categorical
 
 class AutomatedEDA():
-    
+
     # prepare
     def prepare(self, X: pd.DataFrame, target=None, exclude=None, split=True, test_size=0.2, random_state=42, stratify=None):
         """
@@ -44,18 +44,22 @@ class AutomatedEDA():
         if target and split:
             self.fit(self.Xtr, self.ytr)
             # transform Xtrain and Xtest both
-            processed_data = self.transform(self.Xtr, self.ytr) + self.transform(self.Xte, self.yte)
+            outXtr, outytr, outXte, outyte  = self.transform(self.Xtr, self.ytr) + self.transform(self.Xte, self.yte)
+            processed_data = outXtr, outXte, outytr, outyte
         elif target and not split:
             self.fit(self.X, self.y)
-            processed_data = self.transform(self.X, self.y)
+            outX, outy = self.transform(self.X, self.y)
+            processed_data = outX, outy
         elif not target and split:
             self.fit(self.Xtr)
-            processed_data = self.transform(self.Xtr) + self.transform(self.Xte)
+            outXtr, outXte = self.transform(self.Xtr) + self.transform(self.Xte)
+            processed_data = outXtr, outXte
         else:
             self.fit(self.X)
-            processed_data = self.transform(self.X)
+            outX = self.transform(self.X)
+            processed_data = outX
 
-        return processed_data[0] if len(processed_data) == 1 else processed_data
+        return processed_data
 
 
     def fit(self, X: pd.DataFrame, y: pd.Series=None) -> None:
@@ -70,8 +74,8 @@ class AutomatedEDA():
                 None
         """
         # split numerical and categorical 
-        num_cols = X.select_dtypes(include="number")
-        cat_cols = X.select_dtypes(include=["object", "category"])
+        num_cols = X.select_dtypes(include=["number"])
+        cat_cols = X.select_dtypes(include=["object", "category", "string"])
 
         self.categorical = Categorical()
         self.numerical = Numerical()
@@ -92,12 +96,29 @@ class AutomatedEDA():
             Return:
                 Tuple(X, y) if y available else (X,)
         """
-        num_cols = X.select_dtypes(include="number")
-        cat_cols = X.select_dtypes(include=["object", "category"])
+        num_cols = X.select_dtypes(include=["number"])
+        cat_cols = X.select_dtypes(include=["object", "category", "string"])
 
         processed_num_cols = self.numerical.transform(num_cols, exclude=self.exclude)
         processed_cat_cols = self.categorical.transform(cat_cols, exclude=self.exclude)  
 
-        X = pd.concat([processed_num_cols, processed_cat_cols. self.X[self.exclude]], axis=1)
+        X = pd.concat([processed_num_cols, processed_cat_cols], axis=1)
+        if self.exclude is not None:
+            X = pd.concat([X, self.X[self.exclude]], axis=1)
 
         return (X, y) if y is not None else (X, )
+
+
+if __name__ == "__main__":
+    eda = AutomatedEDA()
+    df = pd.DataFrame(
+        {
+            "age": [22, 30, 27, 40, 35, 50],
+            "income": [20000, 22000, 26000, 50000, 48000, 70000],
+            "city": ["A", "B", "A", "C", "B", "A"],
+            "target": [0, 1, 0, 1, 0, 1],
+        }
+    )
+    Xtr, Xte, ytr, yte = eda.prepare(df, target="target")
+
+    print(Xtr.shape, Xte.shape, ytr.shape, yte.shape)
