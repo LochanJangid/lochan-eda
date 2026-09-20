@@ -1,31 +1,50 @@
 # lochan-eda
 
-**A practical toolkit for exploring and preparing tabular data for machine learning.**
+**Exploratory data analysis and behaviour-driven preprocessing for tabular machine learning.**
 
-`lochan-eda` provides two simple workflows:
+[![PyPI version](https://img.shields.io/pypi/v/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
+[![Python versions](https://img.shields.io/pypi/pyversions/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
+[![License](https://img.shields.io/pypi/l/lochan-eda.svg)](https://github.com/LochanJangid/lochan-eda)
+[![GitHub](https://img.shields.io/badge/source-GitHub-black.svg)](https://github.com/LochanJangid/lochan-eda)
 
-- **Explore** a dataset with summaries, plots, missing-value analysis, and a PDF report.
-- **Prepare** tabular data with automatic numerical and categorical preprocessing.
+`lochan-eda` is a Python package for exploratory data analysis and preprocessing of tabular datasets.
+
+It provides reusable components for inspecting numerical and categorical features, analysing missing values, handling common preprocessing tasks, and constructing a consistent train/test preprocessing workflow.
+
+The package is designed around a simple principle:
+
+> **Understand the behaviour of the data before choosing how to preprocess it.**
 
 ---
 
-# Ready to Use
-
 ## Installation
+
+Install the latest release from PyPI:
 
 ```bash
 pip install lochan-eda
 ```
 
-## 1. Automatically Prepare Data for Machine Learning
+For development:
 
-Use `AutomatedEDA` when you want to prepare a tabular dataset before training a machine-learning model.
+```bash
+git clone https://github.com/LochanJangid/lochan-eda.git
+cd lochan-eda
+
+pip install -e .
+```
+
+---
+
+## Quick Start
+
+### Automated workflow
 
 ```python
 import pandas as pd
+
 from lochan_eda import AutomatedEDA
 
-# Load your data
 df = pd.read_csv("data.csv")
 
 eda = AutomatedEDA()
@@ -36,594 +55,442 @@ X_train, X_test, y_train, y_test = eda.prepare(
 )
 ```
 
-By default, `prepare()`:
-
-- separates the target column
-- creates an 80/20 train-test split
-- learns preprocessing from the training data
-- applies the same learned preprocessing to the test data
-- processes numerical and categorical columns separately
-
-You can then pass the processed data directly to your model.
-
-```python
-from sklearn.ensemble import RandomForestClassifier
-
-model = RandomForestClassifier(random_state=42)
-model.fit(X_train, y_train)
-```
-
-### Exclude columns
-
-Keep columns such as IDs out of automatic preprocessing:
-
-```python
-eda = AutomatedEDA()
-
-X_train, X_test, y_train, y_test = eda.prepare(
-    df,
-    target="target",
-    exclude=["customer_id"]
-)
-```
-
-### Use your own target Series
-
-```python
-X = df.drop(columns="target")
-y = df["target"]
-
-eda = AutomatedEDA()
-
-X_train, X_test, y_train, y_test = eda.prepare(
-    X,
-    target=y
-)
-```
-
-### Prepare without a train-test split
-
-```python
-X, y = eda.prepare(
-    df,
-    target="target",
-    split=False
-)
-```
-
-If there is no target, `prepare()` can also process feature data only:
-
-```python
-X = eda.prepare(
-    df,
-    split=False
-)
-```
+`prepare()` provides a high-level interface for the common tabular preprocessing workflow.
 
 ---
 
-## 2. Profile a Dataset
+## Dataset Profiling
 
-Use `Profiler` when you want to understand a dataset before modeling.
-
-```python
-import pandas as pd
-from lochan_eda import Profiler
-
-df = pd.read_csv("data.csv")
-
-profile = Profiler(df, target="target")
-```
-
-### Dataset overview
-
-```python
-profile.overview()
-```
-
-This returns information about:
-
-- rows and columns
-- memory usage
-- duplicate rows
-- duplicate percentage
-- missing cells
-- missing percentage
-- numerical columns
-- categorical columns
-- datetime columns
-
-### Numerical analysis
-
-```python
-profile.numerical.summary()
-profile.numerical.plot()
-```
-
-### Categorical analysis
-
-```python
-profile.categorical.summary()
-profile.categorical.plot()
-```
-
-### Missing-value analysis
-
-```python
-profile.missing.plot()
-```
-
-### Generate a PDF report
-
-```python
-profile.report.save("eda_report.pdf")
-```
-
-The report contains dataset overview information, numerical and categorical summaries, and generated analysis plots.
-
----
-
-## 3. Analyze Only Selected Columns
-
-Numerical and categorical plots can be limited to selected columns.
-
-```python
-profile.numerical.plot(
-    columns=["age", "income"]
-)
-```
-
-```python
-profile.categorical.plot(
-    columns=["city", "education"],
-    top_n=10
-)
-```
-
-`top_n` keeps the most frequent categories visible and groups the remaining categories as `Others`.
-
----
-
-# API Overview
-
-## `AutomatedEDA`
-
-```python
-from lochan_eda import AutomatedEDA
-```
-
-The main interface for automatic tabular-data preprocessing.
-
-### `AutomatedEDA()`
-
-```python
-AutomatedEDA()
-```
-
-Creates an automatic preprocessing object.
-
-### `prepare()`
-
-```python
-prepare(
-    X,
-    target=None,
-    exclude=None,
-    split=True,
-    test_size=0.2,
-    random_state=42,
-    stratify=None
-)
-```
-
-The high-level method for preparing data.
-
-| Parameter | Description |
-|---|---|
-| `X` | Input `pandas.DataFrame`. |
-| `target` | Target column name or `pandas.Series`. |
-| `exclude` | Column name or list of columns to exclude from preprocessing. |
-| `split` | Whether to create train/test data. Default: `True`. |
-| `test_size` | Proportion used for the test set. Default: `0.2`. |
-| `random_state` | Random state for reproducibility. Default: `42`. |
-| `stratify` | Values used for stratified splitting. |
-
-### Return values
-
-The returned values depend on `target` and `split`:
-
-| `target` | `split` | Returns |
-|---|---|---|
-| Not provided | `False` | `X` |
-| Not provided | `True` | `X_train, X_test` |
-| Provided | `False` | `X, y` |
-| Provided | `True` | `X_train, X_test, y_train, y_test` |
-
-### `fit()`
-
-```python
-fit(X, y=None)
-```
-
-Learns preprocessing rules from the supplied data.
-
-`fit()` separates numerical and categorical columns and learns the required transformations for each type.
-
-### `transform()`
-
-```python
-transform(X, y=None)
-```
-
-Applies preprocessing rules learned by `fit()`.
-
-`transform()` must be called after `fit()`.
-
----
-
-# `Profiler`
+For explicit dataset inspection, use `Profiler`:
 
 ```python
 from lochan_eda import Profiler
-```
 
-Provides dataset-level exploratory analysis.
+profile = Profiler(df)
 
-### `Profiler()`
-
-```python
-Profiler(df, target=None)
-```
-
-| Parameter | Description |
-|---|---|
-| `df` | Input `pandas.DataFrame`. |
-| `target` | Target column name. |
-
-When `target` is a column name, the target is separated from the profiling data.
-
-### `overview()`
-
-```python
 profile.overview()
 ```
 
-Prints and returns a dictionary containing:
-
-- `rows`
-- `columns`
-- `memory_usage`
-- `duplicate_rows`
-- `duplicate_percentage`
-- `missing_cells`
-- `missing_percentage`
-- `numerical_columns`
-- `categorical_columns`
-- `datetime_columns`
+The profiler provides access to dataset-level analysis and the numerical and categorical analysis components.
 
 ---
 
-# `Numerical`
+## Numerical Analysis
+
+Numerical features are handled through the `Numerical` component.
 
 ```python
 from lochan_eda import Numerical
+
+numerical = Numerical(df)
+
+numerical.summary()
+numerical.plot()
 ```
 
-Handles numerical-column profiling and preprocessing.
+The numerical interface includes operations for:
 
-### `Numerical()`
+* Missing-value handling
+* Outlier management
+* Scaling
+* Statistical summaries
+* Visualization
 
-```python
-Numerical(profiler_df=None)
+Available methods include:
+
+```text
+imputer()
+outlier_manager()
+scaler()
+summary()
+plot()
 ```
-
-`profiler_df` is used by the profiling methods such as `summary()` and `plot()`.
-
-### `fit()`
-
-```python
-fit(data, exclude=None)
-```
-
-Learns numerical preprocessing rules from the supplied data.
-
-The numerical workflow can learn rules for:
-
-- missing-value imputation
-- column removal based on missingness
-- outlier handling
-- scaling
-
-### `transform()`
-
-```python
-transform(data, exclude=None)
-```
-
-Applies the rules learned by `fit()`.
-
-### `summary()`
-
-```python
-profile.numerical.summary()
-```
-
-Returns a DataFrame containing descriptive numerical statistics together with missing-value, skewness, zero, and outlier information.
-
-### `plot()`
-
-```python
-profile.numerical.plot(columns=None)
-```
-
-Creates numerical analysis plots for each selected numerical column:
-
-- distribution
-- box plot
-- Q-Q plot
-
-The figure is also saved as `numerical_plots.png`.
-
-### `imputer()`
-
-```python
-imputer(learn=False)
-```
-
-Internal numerical preprocessing step for learning or applying missing-value handling.
-
-### `outlier_manager()`
-
-```python
-outlier_manager(learn=False)
-```
-
-Internal numerical preprocessing step for learning or applying outlier rules.
-
-### `scaler()`
-
-```python
-scaler(learn=False)
-```
-
-Internal numerical preprocessing step for learning or applying feature scaling.
-
-> `imputer()`, `outlier_manager()`, and `scaler()` are lower-level methods. For normal usage, prefer `AutomatedEDA` or `Numerical.fit()` / `Numerical.transform()`.
 
 ---
 
-# `Categorical`
+## Categorical Analysis
+
+Categorical features are handled separately through `Categorical`.
 
 ```python
 from lochan_eda import Categorical
+
+categorical = Categorical(df)
+
+categorical.summary()
+categorical.plot()
 ```
 
-Handles categorical-column profiling and preprocessing.
+The categorical interface provides operations for:
 
-### `Categorical()`
+* Missing-value handling
+* Rare-category management
+* Encoding
+* Statistical summaries
+* Visualization
 
-```python
-Categorical(profiler_df=None)
-```
-
-`profiler_df` is used by the profiling methods.
-
-### `fit()`
-
-```python
-fit(data, exclude=None)
-```
-
-Learns categorical preprocessing rules.
-
-The categorical workflow can learn rules for:
-
-- missing-value handling
-- rare-category handling
-- binary encoding
-- one-hot encoding
-- frequency encoding
-
-### `transform()`
-
-```python
-transform(data, exclude=None)
-```
-
-Applies the categorical preprocessing rules learned by `fit()`.
-
-### `summary()`
-
-```python
-profile.categorical.summary()
-```
-
-Returns descriptive statistics for categorical columns.
-
-### `plot()`
-
-```python
-profile.categorical.plot(columns=None, top_n=10)
-```
-
-Creates category-distribution bar charts.
-
-The figure is also saved as `categorical_plots.png`.
-
-### `imputer()`
-
-```python
-imputer(learn=False)
-```
-
-Internal categorical preprocessing step for learning or applying missing-value handling.
-
-### `rare_manager()`
-
-```python
-rare_manager(learn=False)
-```
-
-Internal preprocessing step that learns or applies rare-category grouping.
-
-### `encoder()`
-
-```python
-encoder(learn=False)
-```
-
-Internal preprocessing step that selects and applies categorical encoding based on category cardinality.
-
-> `imputer()`, `rare_manager()`, and `encoder()` are lower-level methods. For normal usage, prefer `AutomatedEDA` or `Categorical.fit()` / `Categorical.transform()`.
-
----
-
-# `Missing`
-
-```python
-from lochan_eda.missing import Missing
-```
-
-Provides missing-value visualization.
-
-### `Missing()`
-
-```python
-Missing(profiler_df=None)
-```
-
-Creates a missing-value analysis object.
-
-### `plot()`
-
-```python
-profile.missing.plot()
-```
-
-Creates a horizontal bar chart showing missing-value percentages by column.
-
-The figure is also saved as `missing_plot.png`.
-
----
-
-# `Report`
-
-```python
-from lochan_eda.report import Report
-```
-
-Generates an EDA PDF report from a `Profiler` instance.
-
-### `Report()`
-
-```python
-Report(profiler)
-```
-
-### `save()`
-
-```python
-profile.report.save("report.pdf")
-```
-
-Generates and saves the exploratory data analysis report.
-
-Default path:
-
-```python
-profile.report.save()
-```
-
-which creates:
+Available methods include:
 
 ```text
-report.pdf
+imputer()
+rare_manager()
+encoder()
+summary()
+plot()
 ```
 
 ---
 
-# Utility Functions
+## Missing Values
 
-The package also contains helper functions in `lochan_eda.utils`.
-
-### `get_iqr_bounds()`
+Missing-value analysis is available independently:
 
 ```python
-from lochan_eda.utils import get_iqr_bounds
+# Example interface
 
-lower, upper = get_iqr_bounds(series)
+missing.plot()
 ```
 
-Returns lower and upper bounds calculated using the IQR method.
-
-### `get_active_cols()`
-
-```python
-from lochan_eda.utils import get_active_cols
-
-columns = get_active_cols(all_cols, exclude=["id"])
-```
-
-Returns columns after removing excluded columns.
-
-### `is_matching()`
-
-```python
-from lochan_eda.utils import is_matching
-
-is_matching(fit_df, transform_df)
-```
-
-Checks whether the two DataFrames contain matching column sets.
+This allows missing-value patterns to be inspected before deciding how they should be handled.
 
 ---
 
-# Typical Workflow
+# Preprocessing Philosophy
 
-A common machine-learning workflow with `lochan-eda` looks like this:
+A common preprocessing workflow can be written directly with scikit-learn:
+
+```python
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+preprocessor = ColumnTransformer([
+    (
+        "numeric",
+        Pipeline([
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler())
+        ]),
+        numeric_columns
+    ),
+    (
+        "categorical",
+        Pipeline([
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("encoder", OneHotEncoder(
+                handle_unknown="ignore"
+            ))
+        ]),
+        categorical_columns
+    )
+])
+```
+
+This is a valid and useful approach.
+
+The problem is not the pipeline itself.
+
+The problem is deciding whether the selected transformations are appropriate for the dataset.
+
+For example:
+
+```text
+median imputation
+       ↓
+Why?
+
+standard scaling
+       ↓
+Why?
+
+most-frequent imputation
+       ↓
+Why?
+
+one-hot encoding
+       ↓
+Why?
+```
+
+`lochan-eda` provides a layer for analysing the dataset before those decisions are applied.
+
+```text
+                  Dataset
+                     │
+                     ▼
+              ┌─────────────┐
+              │   Profile   │
+              └──────┬──────┘
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+     Numerical             Categorical
+     behaviour               behaviour
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+             Preprocessing
+               workflow
+                     │
+                     ▼
+              Model-ready data
+```
+
+The package therefore complements preprocessing libraries rather than attempting to replace them.
+
+---
+
+# Train / Test Workflow
+
+Preprocessing should be learned from training data and then reused when transforming other data.
+
+`AutomatedEDA` supports this separation:
+
+```python
+eda.fit(X_train)
+
+X_train = eda.transform(X_train)
+X_test = eda.transform(X_test)
+```
+
+This keeps the fitting of preprocessing separate from its application.
+
+For the common workflow, `prepare()` provides a single entry point:
+
+```python
+X_train, X_test, y_train, y_test = eda.prepare(
+    df,
+    target="target"
+)
+```
+
+---
+
+# API
+
+## `AutomatedEDA`
+
+High-level interface for the complete preprocessing workflow.
+
+```text
+prepare()
+fit()
+transform()
+```
+
+---
+
+## `Profiler`
+
+Dataset-level analysis interface.
+
+```text
+overview()
+numerical
+categorical
+```
+
+---
+
+## `Numerical`
+
+Numerical feature analysis and preprocessing.
+
+```text
+imputer()
+outlier_manager()
+scaler()
+summary()
+plot()
+```
+
+---
+
+## `Categorical`
+
+Categorical feature analysis and preprocessing.
+
+```text
+imputer()
+rare_manager()
+encoder()
+summary()
+plot()
+```
+
+---
+
+## `Missing`
+
+Missing-value visualization.
+
+```text
+plot()
+```
+
+---
+
+## `Report`
+
+Generate a shareable analysis report.
+
+```text
+save()
+```
+
+---
+
+# Design
+
+`lochan-eda` separates the workflow into two levels.
+
+### High-level API
+
+Use `AutomatedEDA` when the goal is to move efficiently from a DataFrame to model-ready data.
+
+```python
+eda = AutomatedEDA()
+
+X_train, X_test, y_train, y_test = eda.prepare(
+    df,
+    target="target"
+)
+```
+
+### Component-level API
+
+Use `Profiler`, `Numerical`, and `Categorical` when explicit control or inspection is required.
+
+```python
+profile = Profiler(df)
+
+profile.overview()
+
+profile.numerical
+profile.categorical
+```
+
+This keeps the common workflow simple without removing access to the underlying analysis components.
+
+---
+
+# Package Structure
+
+The project is organized around the major stages of tabular data analysis and preprocessing:
+
+```text
+lochan_eda/
+│
+├── automated_eda/
+├── profiler/
+├── numerical/
+├── categorical/
+├── missing/
+└── report/
+```
+
+The internal implementation may evolve independently from the public API.
+
+---
+
+# Dependencies
+
+`lochan-eda` is built around the Python data-science ecosystem and integrates with commonly used tools for tabular machine learning.
+
+The package is intended to work alongside libraries such as:
+
+* pandas
+* NumPy
+* scikit-learn
+* matplotlib
+
+Rather than replacing these libraries, `lochan-eda` provides a higher-level workflow for analysis and preprocessing.
+
+---
+
+# Example
+
+A complete workflow can be as small as:
 
 ```python
 import pandas as pd
-from lochan_eda import AutomatedEDA
-from sklearn.ensemble import RandomForestClassifier
 
-# 1. Load data
+from lochan_eda import Profiler
+from lochan_eda import AutomatedEDA
+
 df = pd.read_csv("data.csv")
 
-# 2. Prepare data
+# Inspect
+profile = Profiler(df)
+profile.overview()
+
+# Prepare
 eda = AutomatedEDA()
+
 X_train, X_test, y_train, y_test = eda.prepare(
     df,
     target="target"
 )
 
-# 3. Train your model
-model = RandomForestClassifier(random_state=42)
+# Continue with model training
 model.fit(X_train, y_train)
 
-# 4. Predict
 predictions = model.predict(X_test)
-```
-
-For exploration before modeling:
-
-```python
-from lochan_eda import Profiler
-
-profile = Profiler(df, target="target")
-
-profile.overview()
-profile.numerical.summary()
-profile.categorical.summary()
-profile.missing.plot()
-profile.report.save("eda_report.pdf")
 ```
 
 ---
 
-# Package
+# Development
 
-- **Package:** `lochan-eda`
-- **Author:** Lochan Jangid
-- **Version:** `0.2.0`
+Clone the repository:
 
+```bash
+git clone https://github.com/LochanJangid/lochan-eda.git
+cd lochan-eda
+```
+
+Install in editable mode:
+
+```bash
+pip install -e .
+```
+
+If you are developing new functionality, install the development dependencies defined by the project.
+
+Run the test suite with the project's configured test command.
+
+---
+
+# Contributing
+
+Contributions are welcome.
+
+Before submitting a change:
+
+1. Keep the public API consistent with the existing design.
+2. Add or update tests for behavioural changes.
+3. Keep preprocessing decisions explicit and reproducible.
+4. Avoid introducing unnecessary dependencies.
+5. Document new public functionality.
+
+For larger changes, open an issue first to discuss the proposed design.
+
+---
+
+# License
+
+See the repository's license file for the applicable license.
+
+---
+
+# Links
+
+* **PyPI:** https://pypi.org/project/lochan-eda/
+* **Source repository:** https://github.com/LochanJangid/lochan-eda/
+
+---
+
+## Status
+
+`lochan-eda` is an actively developed project. The API may evolve as additional preprocessing and analysis capabilities are introduced.
