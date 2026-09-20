@@ -733,4 +733,6 @@ class Report:
             story,
             onFirstPage=add_metadata,
             onLaterPages=add_metadata,
-        )
+        )   
+
+        print(f"Report is saved into `{filepath}`")

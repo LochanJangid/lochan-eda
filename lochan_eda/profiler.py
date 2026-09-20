@@ -95,31 +95,12 @@ class Profiler():
         ).shape[1]
 
         categorical_cols = self.data.select_dtypes(
-            include=["object", "category", "bool"]
+            include=["object", "category", "string"]
         ).shape[1]
 
         datetime_cols = self.data.select_dtypes(
             include=["datetime"]
         ).shape[1]
-
-        print()
-        print("╔══════════════════════════════════════════╗")
-        print("║              DATASET OVERVIEW            ║")
-        print("╠══════════════════════════════════════════╣")
-        print(f"║ Rows              : {rows:>20,} ║")
-        print(f"║ Columns           : {cols:>20,} ║")
-        print(f"║ Memory Usage      : {memory:>20} ║")
-        print(f"║ Duplicate Rows    : {duplicate_rows:>20,} ║")
-        print(f"║ Duplicate %       : {duplicate_pct:>19.2f}% ║")
-        print(f"║ Missing Cells     : {missing_cells:>20,} ║")
-        print(f"║ Missing %         : {missing_pct:>19.2f}% ║")
-        print("╠══════════════════════════════════════════╣")
-        print("║ COLUMN TYPES                             ║")
-        print(f"║ Numerical         : {numerical_cols:>20,} ║")
-        print(f"║ Categorical       : {categorical_cols:>20,} ║")
-        print(f"║ Datetime          : {datetime_cols:>20,} ║")
-        print("╚══════════════════════════════════════════╝")
-        print()
 
         return {
             "rows": rows,
@@ -133,3 +114,9 @@ class Profiler():
             "categorical_columns": categorical_cols,
             "datetime_columns": datetime_cols,
         }
+
+
+if __name__ =="__main__":
+    df = pd.read_csv("dummy_cat_1000.csv")
+    profiler = Profiler(df)
+    profiler.report.save()

@@ -119,8 +119,6 @@ class Categorical:
             return pd.DataFrame()
 
         summary = my_data.describe().T
-        print("\nCategorical Summary\n")
-        print(summary)
         return summary
 
     def plot(self, columns=None, top_n=10):
