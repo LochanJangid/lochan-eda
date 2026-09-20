@@ -102,21 +102,35 @@ class Profiler():
             include=["datetime"]
         ).shape[1]
 
-        return {
-            "rows": rows,
-            "columns": cols,
-            "memory_usage": memory_bytes,
-            "duplicate_rows": duplicate_rows,
-            "duplicate_percentage": duplicate_pct,
-            "missing_cells": missing_cells,
-            "missing_percentage": missing_pct,
-            "numerical_columns": numerical_cols,
-            "categorical_columns": categorical_cols,
-            "datetime_columns": datetime_cols,
-        }
-
+        summary = pd.DataFrame({
+            "Metric": [
+                "Rows",
+                "Columns",
+                "Memory Usage",
+                "Duplicate Rows",
+                "Duplicate Percentage",
+                "Missing Cells",
+                "Missing Percentage",
+                "Numerical Columns",
+                "Categorical Columns",
+                "Datetime Columns",
+            ],
+            "Value": [
+                rows,
+                cols,
+                memory_bytes,
+                duplicate_rows,
+                duplicate_pct,
+                missing_cells,
+                missing_pct,
+                numerical_cols,
+                categorical_cols,
+                datetime_cols,
+            ],
+        })
+        return summary.reindex()
 
 if __name__ =="__main__":
     df = pd.read_csv("dummy_cat_1000.csv")
     profiler = Profiler(df)
-    profiler.report.save()
+    print(profiler.overview())

@@ -119,7 +119,7 @@ class Categorical:
             return pd.DataFrame()
 
         summary = my_data.describe().T
-        return summary
+        return summary.reindex()
 
     def plot(self, columns=None, top_n=10):
         my_data = self.profiler_df.select_dtypes(include=["object", "category", "string"])

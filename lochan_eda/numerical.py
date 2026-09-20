@@ -168,7 +168,7 @@ class Numerical:
         lower_bound = summary["25%"] - iqr*0.5
         upper_bound = summary["25%"] + iqr*0.5
         summary["outliers %"] = ((my_data < lower_bound) | (my_data > upper_bound)).mean()
-        return summary
+        return summary.reindex()
 
     def plot(self, columns=None):
         my_data = self.profiler_df.select_dtypes(include=["number"])
