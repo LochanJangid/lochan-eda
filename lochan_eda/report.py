@@ -180,18 +180,16 @@ class Report:
         # ---------------------------------------------------------
         overview = self.profiler.overview()
 
-        overview["duplicate_percentage"] = (
-            f'{overview["duplicate_percentage"]:.2f}%'
-        )
+        overview_table = []
 
-        overview["missing_percentage"] = (
-            f'{overview["missing_percentage"]:.2f}%'
-        )
+        for _, row in overview.iterrows():
+            metric = str(row["Metric"])
+            value = row["Value"]
 
-        overview_table = [
-            [k.replace("_", " ").title(), v]
-            for k, v in overview.items()
-        ]
+            if metric in {"Duplicate Percentage", "Missing Percentage"}:
+                value = f"{value:.2f}%"
+
+            overview_table.append([metric, str(value)])
 
         overview_tb = Table(
             overview_table,

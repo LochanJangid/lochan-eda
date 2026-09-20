@@ -133,4 +133,4 @@ class Profiler():
 if __name__ =="__main__":
     df = pd.read_csv("dummy_cat_1000.csv")
     profiler = Profiler(df)
-    print(profiler.overview())
+    profiler.report.save()
