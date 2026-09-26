@@ -3,6 +3,7 @@
 **Exploratory data analysis and behaviour-driven preprocessing for tabular machine learning.**
 
 [![Documentation](https://img.shields.io/badge/Documentation-8A2BE2)](https://lochan.vercel.app/work/lochan-eda/docs)
+[![Case Study](https://img.shields.io/badge/CaseStudy-8A2BE2)](https://lochan.vercel.app/work/lochan-eda)
 [![PyPI version](https://img.shields.io/pypi/v/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
 [![Python versions](https://img.shields.io/pypi/pyversions/lochan-eda.svg)](https://pypi.org/project/lochan-eda/)
 [![License](https://img.shields.io/pypi/l/lochan-eda.svg)](https://github.com/LochanJangid/lochan-eda)
