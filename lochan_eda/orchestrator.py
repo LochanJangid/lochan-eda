@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from lochan_eda.numerical import Numerical
@@ -118,9 +117,14 @@ class AutomatedEDA():
                 y = y.values.astype(np.float32)
 
         if in_return=="tensor":
-            X = torch.from_numpy(X.values.astype(np.float32))
-            if y is not None:
-                y = torch.from_numpy(y.values.astype(np.float32))
+            try:
+                import torch
+            except Exception as e:
+                raise Exception(f"! Error: Install pytorch explicitly for your system. {e}")
+            else:
+                X = torch.from_numpy(X.values.astype(np.float32))
+                if y is not None:
+                    y = torch.from_numpy(y.values.astype(np.float32))
 
         return (X, y) if y is not None else (X, )
 
@@ -128,7 +132,7 @@ class AutomatedEDA():
 if __name__ == "__main__":
     eda = AutomatedEDA()
     df = pd.read_csv("dummy_cat_1000.csv")
-    Xtr, Xte = eda.prepare(df, in_return="dataframe")
+    Xtr, Xte = eda.prepare(df, in_return="tensor")
 
     print(type(Xtr), type(Xte))
 
