@@ -1,3 +1,5 @@
+import numpy as np
+import torch
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from lochan_eda.numerical import Numerical
@@ -8,7 +10,7 @@ class AutomatedEDA():
         self.exclude = None
 
     # prepare
-    def prepare(self, X: pd.DataFrame, target=None, exclude=None, split=True, test_size=0.2, random_state=42, stratify=None):
+    def prepare(self, X: pd.DataFrame, target=None, exclude=None, split=True, test_size=0.2, random_state=42, stratify=None, in_return="ndarray"):
         """
             prepare(
                 X: pd.Dataframe -> features
@@ -18,6 +20,7 @@ class AutomatedEDA():
                 test_size: float -> test set size in ratio
                 random_state: int -> state for reproducability
                 stratify: if data imbalanced
+                in_return: ndarray/dataframe/tensor -> you return result type
             )
             Return:
                 X if split is False and target is None
@@ -46,19 +49,19 @@ class AutomatedEDA():
         if self.y is not None and split:
             self.fit(self.Xtr, self.ytr)
             # transform Xtrain and Xtest both
-            outXtr, outytr, outXte, outyte  = self.transform(self.Xtr, self.ytr) + self.transform(self.Xte, self.yte)
+            outXtr, outytr, outXte, outyte  = self.transform(self.Xtr, self.ytr, in_return=in_return) + self.transform(self.Xte, self.yte, in_return=in_return)
             processed_data = outXtr, outXte, outytr, outyte
         elif self.y is not None and not split:
             self.fit(self.X, self.y)
-            outX, outy = self.transform(self.X, self.y)
+            outX, outy = self.transform(self.X, self.y, in_return=in_return)
             processed_data = outX, outy
         elif self.y is None and split:
             self.fit(self.Xtr)
-            outXtr, outXte = self.transform(self.Xtr) + self.transform(self.Xte)
+            outXtr, outXte = self.transform(self.Xtr, in_return=in_return) + self.transform(self.Xte, in_return=in_return)
             processed_data = outXtr, outXte
         else:
             self.fit(self.X)
-            outX = self.transform(self.X)
+            outX = self.transform(self.X, in_return=in_return)
             processed_data = outX[0]
 
         return processed_data
@@ -87,11 +90,12 @@ class AutomatedEDA():
 
         return None
 
-    def transform(self, X: pd.DataFrame, y: pd.Series=None):
+    def transform(self, X: pd.DataFrame, y: pd.Series=None, in_return="ndarray"):
         """
-            fit(
+            transform(
                 X: pd.DataFrame -> features
                 y: pd.Series -> labels
+                in_return: ndarray/dataframe/tensor -> you return result type
             )
             Work:
                 implement the analyzed work
@@ -107,19 +111,34 @@ class AutomatedEDA():
 
         X = pd.concat([processed_num_cols, processed_cat_cols], axis=1)
 
+        # Change dataframe to user want (in_return) type
+        if in_return=="ndarray":
+            X = X.values
+            if y is not None:
+                y = y.values
+
+        if in_return=="tensor":
+            X = torch.from_numpy(X.values)
+            if y is not None:
+                y = torch.from_numpy(y.values)
+
         return (X, y) if y is not None else (X, )
 
 
 if __name__ == "__main__":
     eda = AutomatedEDA()
-    df = pd.DataFrame(
-        {
-            "age": [22, 30, 27, 40, 35, 50],
-            "income": [20000, 22000, 26000, 50000, 48000, 70000],
-            "city": ["A", "B", "A", "C", "B", "A"],
-            "target": [0, 1, 0, 1, 0, 1],
-        }
-    )
-    Xtr, Xte, ytr, yte = eda.prepare(df, target="target")
+    df = pd.read_csv("dummy_cat_1000.csv")
+    Xtr, Xte = eda.prepare(df, in_return="dataframe")
 
-    print(Xtr.shape, Xte.shape, ytr.shape, yte.shape)
+    print(type(Xtr), type(Xte))
+
+    print(Xtr.shape, Xte.shape) #, ytr.shape, yte.shape)
+    print(Xtr.isna().sum().sum(), Xte.isna().sum().sum())
+    print("Original:")
+    print(df.columns.tolist())
+
+    print("\nTrain:")
+    print(Xtr.columns.tolist())
+
+    print("\nTest:")
+    print(Xte.columns.tolist())
