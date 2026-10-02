@@ -113,9 +113,9 @@ class AutomatedEDA():
 
         # Change dataframe to user want (in_return) type
         if in_return=="ndarray":
-            X = X.values
+            X = X.values.astype(np.float32)
             if y is not None:
-                y = y.values
+                y = y.values.astype(np.float32)
 
         if in_return=="tensor":
             X = torch.from_numpy(X.values.astype(np.float32))
