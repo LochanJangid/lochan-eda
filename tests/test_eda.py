@@ -51,7 +51,8 @@ class TestAutomatedEDA:
 
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
-            target="target"
+            target="target",
+            in_return="dataframe"
         )
 
         assert isinstance(Xtr, pd.DataFrame)
@@ -68,7 +69,10 @@ class TestAutomatedEDA:
     def test_prepare_without_target_and_split(self, basic_df):
         eda = AutomatedEDA()
 
-        Xtr, Xte = eda.prepare(basic_df.drop(columns="target"))
+        Xtr, Xte = eda.prepare(
+            basic_df.drop(columns="target"),
+            in_return="dataframe"
+        )
 
         assert isinstance(Xtr, pd.DataFrame)
         assert isinstance(Xte, pd.DataFrame)
@@ -81,7 +85,8 @@ class TestAutomatedEDA:
         X, y = eda.prepare(
             basic_df,
             target="target",
-            split=False
+            split=False,
+            in_return="dataframe"
         )
 
         assert isinstance(X, pd.DataFrame)
@@ -95,7 +100,8 @@ class TestAutomatedEDA:
 
         result = eda.prepare(
             basic_df.drop(columns="target"),
-            split=False
+            split=False,
+            in_return="dataframe"
         )
 
         assert isinstance(result, pd.DataFrame)
@@ -106,6 +112,77 @@ class TestAutomatedEDA:
         assert "city_B" in result.columns
         assert "city_C" in result.columns
 
+    def test_prepare_default_returns_ndarray(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target"
+        )
+
+        assert isinstance(Xtr, np.ndarray)
+        assert isinstance(Xte, np.ndarray)
+        assert isinstance(ytr, np.ndarray)
+        assert isinstance(yte, np.ndarray)
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_prepare_ndarray_without_target(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte = eda.prepare(
+            basic_df.drop(columns="target"),
+            in_return="ndarray"
+        )
+
+        assert isinstance(Xtr, np.ndarray)
+        assert isinstance(Xte, np.ndarray)
+
+        assert len(Xtr) + len(Xte) == len(basic_df)
+
+    def test_prepare_ndarray_without_split(self, basic_df):
+        eda = AutomatedEDA()
+
+        X = eda.prepare(
+            basic_df.drop(columns="target"),
+            split=False,
+            in_return="ndarray"
+        )
+
+        assert isinstance(X, np.ndarray)
+        assert len(X) == len(basic_df)
+
+    def test_prepare_tensor_with_target(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte, ytr, yte = eda.prepare(
+            basic_df,
+            target="target",
+            in_return="tensor"
+        )
+
+        assert isinstance(Xtr, torch.Tensor)
+        assert isinstance(Xte, torch.Tensor)
+        assert isinstance(ytr, torch.Tensor)
+        assert isinstance(yte, torch.Tensor)
+
+        assert len(Xtr) == len(ytr)
+        assert len(Xte) == len(yte)
+
+    def test_prepare_tensor_without_target(self, basic_df):
+        eda = AutomatedEDA()
+
+        Xtr, Xte = eda.prepare(
+            basic_df.drop(columns="target"),
+            in_return="tensor"
+        )
+
+        assert isinstance(Xtr, torch.Tensor)
+        assert isinstance(Xte, torch.Tensor)
+
+        assert Xtr.shape[0] + Xte.shape[0] == len(basic_df)
+
     def test_target_series(self, basic_df):
         eda = AutomatedEDA()
 
@@ -114,9 +191,12 @@ class TestAutomatedEDA:
 
         Xtr, Xte, ytr, yte = eda.prepare(
             X,
-            target=y
+            target=y,
+            in_return="dataframe"
         )
 
+        assert isinstance(Xtr, pd.DataFrame)
+        assert isinstance(Xte, pd.DataFrame)
         assert isinstance(ytr, pd.Series)
         assert isinstance(yte, pd.Series)
 
@@ -129,7 +209,8 @@ class TestAutomatedEDA:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["age"]
+            exclude=["age"],
+            in_return="dataframe"
         )
 
         assert "age" not in Xtr.columns
@@ -144,7 +225,8 @@ class TestAutomatedEDA:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["city"]
+            exclude=["city"],
+            in_return="dataframe"
         )
 
         assert "city" not in Xtr.columns
@@ -159,7 +241,8 @@ class TestAutomatedEDA:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["age", "city"]
+            exclude=["age", "city"],
+            in_return="dataframe"
         )
 
         assert "age" not in Xtr.columns
@@ -177,7 +260,8 @@ class TestAutomatedEDA:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["age"]
+            exclude=["age"],
+            in_return="dataframe"
         )
 
         assert len(Xtr) == len(ytr)
@@ -192,7 +276,8 @@ class TestAutomatedEDA:
             basic_df,
             target="target",
             exclude=["age", "city"],
-            split=False
+            split=False,
+            in_return="dataframe"
         )
 
         assert "age" not in X.columns
@@ -219,7 +304,11 @@ class TestAutomatedEDA:
         X = basic_df.drop(columns="target")
 
         eda.fit(X)
-        transformed = eda.transform(X)
+
+        transformed = eda.transform(
+            X,
+            in_return="dataframe"
+        )
 
         assert isinstance(transformed, tuple)
         assert isinstance(transformed[0], pd.DataFrame)
@@ -314,6 +403,7 @@ class TestNumerical:
         numerical = Numerical()
 
         X = basic_df[["age", "income"]]
+
         numerical.fit(X)
 
         different_X = basic_df[["age"]]
@@ -424,6 +514,7 @@ class TestCategorical:
         categorical = Categorical()
 
         X = basic_df[["city"]]
+
         categorical.fit(X)
 
         different_X = pd.DataFrame({
@@ -445,7 +536,8 @@ class TestIntegration:
 
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
-            target="target"
+            target="target",
+            in_return="dataframe"
         )
 
         assert isinstance(Xtr, pd.DataFrame)
@@ -463,7 +555,8 @@ class TestIntegration:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["age"]
+            exclude=["age"],
+            in_return="dataframe"
         )
 
         assert "age" not in Xtr.columns
@@ -478,7 +571,8 @@ class TestIntegration:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["city"]
+            exclude=["city"],
+            in_return="dataframe"
         )
 
         assert "city" not in Xtr.columns
@@ -493,7 +587,8 @@ class TestIntegration:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["age", "city"]
+            exclude=["age", "city"],
+            in_return="dataframe"
         )
 
         assert set(Xtr.columns) == {"income"}
@@ -507,7 +602,10 @@ class TestIntegration:
 
         X = basic_df.drop(columns="target")
 
-        Xtr, Xte = eda.prepare(X)
+        Xtr, Xte = eda.prepare(
+            X,
+            in_return="dataframe"
+        )
 
         assert isinstance(Xtr, pd.DataFrame)
         assert isinstance(Xte, pd.DataFrame)
@@ -519,7 +617,8 @@ class TestIntegration:
 
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
-            target="target"
+            target="target",
+            in_return="dataframe"
         )
 
         assert len(Xtr) == len(ytr)
@@ -532,7 +631,8 @@ class TestIntegration:
 
         Xtr, Xte, ytr, yte = eda.prepare(
             missing_df,
-            target="target"
+            target="target",
+            in_return="dataframe"
         )
 
         assert not Xtr.isna().any().any()
@@ -544,7 +644,8 @@ class TestIntegration:
         Xtr, Xte, ytr, yte = eda.prepare(
             basic_df,
             target="target",
-            exclude=["age", "city"]
+            exclude=["age", "city"],
+            in_return="dataframe"
         )
 
         assert "age" not in Xtr.columns
