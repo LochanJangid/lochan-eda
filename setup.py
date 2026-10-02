@@ -18,7 +18,6 @@ setup(
         "matplotlib",
         "seaborn",
         "pytest",
-        "torch",
         "reportlab"
     ],
     classifiers=[
