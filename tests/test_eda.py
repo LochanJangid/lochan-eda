@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from lochan_eda.orchestrator import AutomatedEDA
 from lochan_eda.numerical import Numerical

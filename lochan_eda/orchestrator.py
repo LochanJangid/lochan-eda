@@ -118,9 +118,9 @@ class AutomatedEDA():
                 y = y.values
 
         if in_return=="tensor":
-            X = torch.from_numpy(X.values)
+            X = torch.from_numpy(X.values.astype(np.float32))
             if y is not None:
-                y = torch.from_numpy(y.values)
+                y = torch.from_numpy(y.values.astype(np.float32))
 
         return (X, y) if y is not None else (X, )
 
